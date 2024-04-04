@@ -312,5 +312,6 @@ public class Constants {
 	public static final String ERROR_DETAILS = "Error Details";
 	public static final String DATE_OF_JOINING = "dojOfService";
 	public static final String STATUS_BULK_UPLOAD = "Status";
+	public static final String ADDITIONAL_PROPERTIES_TAG = "profileDetails.additionalProperties.tag";
 
 }

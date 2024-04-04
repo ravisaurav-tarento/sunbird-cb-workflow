@@ -138,13 +138,13 @@ public class UserBulkUploadService {
                 // incrementing the iterator inorder to skip the headers in the first row
                 if (rowIterator.hasNext()) {
                     Row firstRow = rowIterator.next();
-                    Cell statusCell = firstRow.getCell(10);
-                    Cell errorDetails = firstRow.getCell(11);
+                    Cell statusCell = firstRow.getCell(11);
+                    Cell errorDetails = firstRow.getCell(12);
                     if (statusCell == null) {
-                        statusCell = firstRow.createCell(10);
+                        statusCell = firstRow.createCell(11);
                     }
                     if (errorDetails == null) {
-                        errorDetails = firstRow.createCell(11);
+                        errorDetails = firstRow.createCell(12);
                     }
                     statusCell.setCellValue(Constants.STATUS_BULK_UPLOAD);
                     errorDetails.setCellValue(Constants.ERROR_DETAILS);
@@ -176,13 +176,13 @@ public class UserBulkUploadService {
                     Map<String, String> valuesToBeUpdate = new HashMap<>();
                     Map<String, Object> userDetails = null;
                     boolean isEmailOrPhoneNumberValid = false;
-                    Cell statusCell = nextRow.getCell(10);
+                    Cell statusCell = nextRow.getCell(11);
                     if (statusCell == null) {
-                        statusCell = nextRow.createCell(10);
+                        statusCell = nextRow.createCell(11);
                     }
-                    Cell errorDetails = nextRow.getCell(11);
+                    Cell errorDetails = nextRow.getCell(12);
                     if (errorDetails == null) {
-                        errorDetails = nextRow.createCell(11);
+                        errorDetails = nextRow.createCell(12);
                     }
                     if (nextRow.getCell(0) != null && nextRow.getCell(0).getCellType() != CellType.BLANK) {
                         String email = nextRow.getCell(0).getStringCellValue().trim();
@@ -282,6 +282,9 @@ public class UserBulkUploadService {
                     if (nextRow.getCell(9) != null && nextRow.getCell(9).getCellType() != CellType.BLANK) {
                         valuesToBeUpdate.put(Constants.LOCATION, nextRow.getCell(9).getStringCellValue().trim());
                     }
+                    if (nextRow.getCell(10) != null && nextRow.getCell(10).getCellType() != CellType.BLANK) {
+                        valuesToBeUpdate.put(Constants.TAG, nextRow.getCell(10).getStringCellValue().trim());
+                    }
                     if(!CollectionUtils.isEmpty(errList)){
                         this.setErrorDetails(str, errList, statusCell, errorDetails);
                         failedRecordsCount++;
@@ -344,7 +347,17 @@ public class UserBulkUploadService {
                             fieldKey = Constants.EMPLOYMENT_DETAILS;
                         } else{
                             fieldKey = Constants.PROFESSIONAL_DETAILS;
-                         }
+                        }
+                        if(Constants.TAG.equalsIgnoreCase(entry.getKey())){
+                            fieldKey = Constants.ADDITIONAL_PROPERTIES;
+                            Set<String> userTags = new HashSet<>((List<String>) userDetails.get(Constants.TAG));
+                            String[] tagsForUpdate = entry.getValue().split(",");
+                            for(String userTag : tagsForUpdate){
+                                String tag = userTag.trim();
+                                userTags.add(tag);
+                            }
+                            updatedValueMap.put(entry.getKey(), userTags);
+                        }
                         updateValues.put(Constants.FIELD_KEY, fieldKey);
                         updatedValues.add(updateValues);
                         if(null != wfRequest){
@@ -395,8 +408,8 @@ public class UserBulkUploadService {
                 wb.close();
             if (fis != null)
                 fis.close();
-            if (file != null)
-                file.delete();
+            /*if (file != null)
+                file.delete();*/
         }
     }
 
@@ -431,7 +444,7 @@ public class UserBulkUploadService {
 
         Map<String, Object> request = new HashMap<>();
         request.put("filters", filters);
-        request.put(Constants.FIELDS, Arrays.asList(Constants.USER_ID, Constants.STATUS, Constants.CHANNEL, Constants.ROOT_ORG_ID, Constants.PHONE, Constants.EMAIL));
+        request.put(Constants.FIELDS, Arrays.asList(Constants.USER_ID, Constants.STATUS, Constants.CHANNEL, Constants.ROOT_ORG_ID, Constants.PHONE, Constants.EMAIL, Constants.ADDITIONAL_PROPERTIES_TAG));
 
         Map<String, Object> requestObject = new HashMap<>();
         requestObject.put("request", request);
@@ -446,10 +459,19 @@ public class UserBulkUploadService {
                 Map<String, Object> response = (Map<String, Object>) map.get(Constants.RESPONSE);
                 List<Map<String, Object>> contents = (List<Map<String, Object>>) response.get(Constants.CONTENT);
                 if (!CollectionUtils.isEmpty(contents)) {
+                    List<String> tag = null;
                     for (Map<String, Object> content : contents) {
+                        Map<String, Object> profileDetails = (Map<String, Object>) content.get("profileDetails");
+                        if(!CollectionUtils.isEmpty(profileDetails)){
+                            Map<String, Object> additionalProperties = (Map<String, Object>) profileDetails.get("additionalProperties");
+                            if(!CollectionUtils.isEmpty(additionalProperties)){
+                                tag = (List<String>) additionalProperties.get(Constants.TAG);
+                            }
+                        }
                         userRecordDetails.put(Constants.USER_ID, content.get(Constants.USER_ID));
                         userRecordDetails.put(Constants.DEPARTMENT_NAME, content.get(Constants.CHANNEL));
                         userRecordDetails.put(Constants.ROOT_ORG_ID, content.get(Constants.ROOT_ORG_ID));
+                        userRecordDetails.put(Constants.TAG, tag);
                     }
                     return true;
                 }
