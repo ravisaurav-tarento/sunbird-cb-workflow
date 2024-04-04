@@ -102,7 +102,7 @@ public class UserProfileWfServiceImpl implements UserProfileWfService {
 			}
 
 			Map<String, Object> updateRequest = updateRequestWithWF(wfRequest.getApplicationId(), wfRequest.getUpdateFieldValues(), profileDetails);
-			if (null == updateRequest) {
+			if (CollectionUtils.isEmpty(updateRequest)) {
 				logger.error("user profile datatype error");
 				failedCase(wfRequest);
 				return;
@@ -154,9 +154,15 @@ public class UserProfileWfServiceImpl implements UserProfileWfService {
 						detailsMap = (Map<String, Object>) wfRequestParamObj.get(Constants.TO_VALUE);
 						detailsList.add(detailsMap);
 						existingProfileDetail.put((String) wfRequestParamObj.get(Constants.FIELD_KEY), detailsList);
+					} else if (Constants.ADDITIONAL_PROPERTIES.equalsIgnoreCase((String) wfRequestParamObj.get(Constants.FIELD_KEY))) {
+						Map<String, Object> toValue = (Map<String, Object>) wfRequestParamObj.get(Constants.TO_VALUE);
+						Set<String> tags = (Set<String>) toValue.get(Constants.TAG);
+						Map<String, Object> additionalProperties = new HashMap<>();
+						additionalProperties.put(Constants.TAG, tags);
+						existingProfileDetail.put((String) wfRequestParamObj.get(Constants.FIELD_KEY), additionalProperties);
 					} else {
 						logger.error("profile element to be updated is neither arraylist nor hashmap");
-						return null;
+						return Collections.emptyMap();
 					}
 				}
 				Map<String, Object> objectMap = (Map<String, Object>) wfRequestParamObj.get(Constants.TO_VALUE);

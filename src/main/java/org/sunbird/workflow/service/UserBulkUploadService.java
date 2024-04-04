@@ -130,6 +130,7 @@ public class UserBulkUploadService {
         String status = "";
         try {
             file = new File(Constants.LOCAL_BASE_PATH + inputDataMap.get(Constants.FILE_NAME));
+            String mdoUserId = inputDataMap.get(Constants.CREATED_BY);
             if (file.exists() && file.length() > 0) {
                 fis = new FileInputStream(file);
                 wb = new XSSFWorkbook(fis);
@@ -334,10 +335,10 @@ public class UserBulkUploadService {
                     employmentDetailsKey.add(Constants.CADRE);
                     employmentDetailsKey.add(Constants.PAY_TYPE);
                     employmentDetailsKey.add(Constants.DATE_OF_JOINING);
-                    WfRequest wfRequest = this.getWFRequest(valuesToBeUpdate, userId);
-                    List<HashMap<String, Object>> updatedValues = new ArrayList<>();
+                    WfRequest wfRequest = this.getWFRequest(userDetails, mdoUserId);
                     for(Map.Entry<String, String> entry : valuesToBeUpdate.entrySet()){
                         String fieldKey;
+                        List<HashMap<String, Object>> updatedValues = new ArrayList<>();
                         HashMap<String, Object> updatedValueMap = new HashMap<>();
                         updatedValueMap.put(entry.getKey(), entry.getValue());
                         HashMap<String, Object> updateValues = new HashMap<>();
@@ -349,8 +350,14 @@ public class UserBulkUploadService {
                             fieldKey = Constants.PROFESSIONAL_DETAILS;
                         }
                         if(Constants.TAG.equalsIgnoreCase(entry.getKey())){
+                            Set<String> userTags;
                             fieldKey = Constants.ADDITIONAL_PROPERTIES;
-                            Set<String> userTags = new HashSet<>((List<String>) userDetails.get(Constants.TAG));
+                            List<String> existingUserTags = (List<String>) userDetails.get(Constants.TAG);
+                            if(CollectionUtils.isEmpty(existingUserTags)) {
+                                userTags = new HashSet<>();
+                            } else {
+                                userTags = new HashSet<>(existingUserTags);
+                            }
                             String[] tagsForUpdate = entry.getValue().split(",");
                             for(String userTag : tagsForUpdate){
                                 String tag = userTag.trim();
@@ -483,20 +490,20 @@ public class UserBulkUploadService {
         return false;
     }
 
-    private WfRequest getWFRequest(Object object, String userId) throws IOException {
+    private WfRequest getWFRequest(Object object, String mdoUserId) throws IOException {
         WfRequest wfRequest = new WfRequest();
         wfRequest.setAction(Constants.APPROVE_STATE);
         String wfId = UUID.randomUUID().toString();
         if(object instanceof HashMap){
             Map<String, String> userDetails = (Map<String, String>) object;
-            wfRequest.setApplicationId(userId);
+            wfRequest.setApplicationId(userDetails.get(Constants.USER_ID));
             wfRequest.setUserId(userDetails.get(Constants.USER_ID));
             wfRequest.setAction(Constants.APPROVE_STATE);
-            wfRequest.setRootOrgId("");
-            wfRequest.setDeptName("");
+            wfRequest.setRootOrgId(userDetails.get(Constants.ROOT_ORG_ID));
+            wfRequest.setDeptName(userDetails.get(Constants.DEPARTMENT_NAME));
             wfRequest.setState(Constants.SEND_FOR_APPROVAL);
             wfRequest.setServiceName(Constants.PROFILE_SERVICE_NAME);
-            wfRequest.setActorUserId("");
+            wfRequest.setActorUserId(mdoUserId);
             wfRequest.setComment("Bulk Update by MDO Admin");
             wfRequest.setWfId(wfId);
             return wfRequest;
