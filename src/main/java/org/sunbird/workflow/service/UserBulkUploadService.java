@@ -408,8 +408,8 @@ public class UserBulkUploadService {
                 wb.close();
             if (fis != null)
                 fis.close();
-            /*if (file != null)
-                file.delete();*/
+            if (file != null)
+                file.delete();
         }
     }
 
