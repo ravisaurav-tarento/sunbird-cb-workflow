@@ -32,6 +32,7 @@ public class WfRequest {
 	private String batchName;
 	private Date batchStartDate;
 	private boolean isNominatedByMdo;
+	private String fieldName;
 
 	public String getState() {
 		return state;
@@ -159,5 +160,13 @@ public class WfRequest {
 
 	public void setNominatedByMdo(boolean nominatedByMdo) {
 		isNominatedByMdo = nominatedByMdo;
+	}
+
+	public String getFieldName() {
+		return fieldName;
+	}
+
+	public void setFieldName(String fieldName) {
+		this.fieldName = fieldName;
 	}
 }

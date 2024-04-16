@@ -8,21 +8,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.HTTP;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -1096,6 +1090,51 @@ public class WorkflowServiceImpl implements Workflowservice {
 		response.getParams().setStatus(Constants.FAILED);
 		response.getParams().setErrmsg(errMsg);
 		response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	@Override
+	public Response profileChangeRequestWithdraw(String userId, WfRequest wfRequest) {
+		Response response = new Response();
+		response.setResponseCode(HttpStatus.OK);
+		response.put(Constants.MESSAGE, "Your Request has been withdrawn successfully");
+		try {
+			List<WfStatusEntity> userUpdateProfileRequests = wfStatusRepo. findByServiceNameAndCurrentStatusAndApplicationIdIn(wfRequest.getServiceName(), wfRequest.getState(), Collections.singletonList(userId));
+			TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
+			};
+			boolean breakLoop = false;
+			WfStatusEntity requiredWfStatusEntity = null;
+			for (WfStatusEntity wfStatusEntity : userUpdateProfileRequests) {
+				if (breakLoop)
+					break;
+				List<HashMap<String, Object>> values = mapper.readValue(wfStatusEntity.getUpdateFieldValues(), typeRef);
+				for (HashMap<String, Object> updatedValuesMap : values) {
+					if (breakLoop)
+						break;
+					if (updatedValuesMap.containsKey(Constants.FROM_VALUE)) {
+						Map<String, Object> fieldToBeUpdated = (Map<String, Object>) updatedValuesMap.get(Constants.FROM_VALUE);
+						for (Map.Entry<String, Object> fieldEntry : fieldToBeUpdated.entrySet()) {
+							if (fieldEntry.getKey().equalsIgnoreCase(wfRequest.getFieldName())) {
+								requiredWfStatusEntity = wfStatusEntity;
+								breakLoop = true;
+								break;
+							}
+						}
+					}
+				}
+			}
+			if (null != requiredWfStatusEntity) {
+				requiredWfStatusEntity.setCurrentStatus("Withdrawn");
+				requiredWfStatusEntity.setInWorkflow(Boolean.FALSE);
+				requiredWfStatusEntity.setLastUpdatedOn(new Date());
+				requiredWfStatusEntity.setComment("Withdrawn By User");
+				wfStatusRepo.save(requiredWfStatusEntity);
+			}
+		} catch (Exception e) {
+			log.info("An error occurred while withdrawing the request {}", e.getMessage());
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			response.put(Constants.ERROR_MESSAGE, "An Exception occurred while withdrawing request");
+		}
+		return response;
 	}
 
 }

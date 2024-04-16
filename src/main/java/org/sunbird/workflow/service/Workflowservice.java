@@ -51,4 +51,6 @@ public interface Workflowservice {
     public SBApiResponse getBulkUpdateStatus(String userAuthToken);
 
     public ResponseEntity<InputStreamResource> downloadBulkUploadFile(String fileName);
+
+    public Response profileChangeRequestWithdraw(String wid, WfRequest wfRequest);
 }

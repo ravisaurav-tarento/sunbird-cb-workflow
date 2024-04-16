@@ -122,4 +122,10 @@ public class WorkFlowController {
 	public ResponseEntity<?> downloadBulkuplodFile(@PathVariable("fileName") String fileName) {
 		return workflowService.downloadBulkUploadFile(fileName);
 	}
+
+	@PostMapping("profile/updaterequest/withdraw")
+	public ResponseEntity<Response> profileChangeRequestWithdraw(@RequestHeader String wid, @RequestBody WfRequest wfRequest) {
+		Response response = workflowService.profileChangeRequestWithdraw(wid, wfRequest);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
 }
