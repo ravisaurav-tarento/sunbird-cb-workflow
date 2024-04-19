@@ -419,7 +419,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 			throw new InvalidDataInputException(Constants.ACTION_VALIDATION_ERROR);
 		}
 
-		if (!"WITHDRAW".equalsIgnoreCase(wfRequest.getAction()) && CollectionUtils.isEmpty(wfRequest.getUpdateFieldValues())) {
+		if (!Constants.WITHDRAW.equalsIgnoreCase(wfRequest.getAction()) && CollectionUtils.isEmpty(wfRequest.getUpdateFieldValues())) {
 			throw new InvalidDataInputException(Constants.FIELD_VALUE_VALIDATION_ERROR);
 		}
 
