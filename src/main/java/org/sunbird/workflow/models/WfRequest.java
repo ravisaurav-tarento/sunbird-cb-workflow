@@ -160,5 +160,4 @@ public class WfRequest {
 	public void setNominatedByMdo(boolean nominatedByMdo) {
 		isNominatedByMdo = nominatedByMdo;
 	}
-
 }
