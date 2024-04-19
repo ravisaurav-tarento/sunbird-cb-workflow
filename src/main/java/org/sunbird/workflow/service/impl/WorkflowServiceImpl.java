@@ -764,12 +764,15 @@ public class WorkflowServiceImpl implements Workflowservice {
 
 	@Override
 	public Response getUserWFApplicationFields(String rootOrg, String org, String wid, SearchCriteria criteria) {
+		Response response = new Response();
+		response.put(Constants.STATUS, HttpStatus.OK);
+		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
 		List<Object[]> updatedFieldValues = wfStatusRepo.findWfFieldsForUser(rootOrg, org, criteria.getServiceName(), criteria.getApplicationStatus(), wid);
 		TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
 		};
 		List<Map<String, Object>> result = new ArrayList<>();
 		for (Object[] fields : updatedFieldValues) {
-			if (!StringUtils.isEmpty(fields)) {
+			if (!ObjectUtils.isEmpty(fields)) {
 				try {
 					List<HashMap<String, Object>> values = mapper.readValue((String)fields[0], typeRef);
 					for (HashMap<String, Object> wffieldReq : values) {
@@ -779,16 +782,14 @@ public class WorkflowServiceImpl implements Workflowservice {
 						resultData.put(toValueMap.entrySet().iterator().next().getKey(),toValueMap.entrySet().iterator().next().getValue());
 						result.add(resultData);
 					}
+					response.put(Constants.DATA, result);
 				} catch (IOException e) {
-					log.error("Exception occurred while parsing wf fields!");
-                    log.error(e.toString());
+					log.error("Exception occurred while parsing wf fields!", e);
+					response.put(Constants.STATUS, HttpStatus.INTERNAL_SERVER_ERROR);
+					response.put(Constants.MESSAGE, "Exception occurred while fetching requested fields for approval");
 				}
 			}
 		}
-		Response response = new Response();
-		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
-		response.put(Constants.DATA, result);
-		response.put(Constants.STATUS, HttpStatus.OK);
 		return response;
 	}
 
