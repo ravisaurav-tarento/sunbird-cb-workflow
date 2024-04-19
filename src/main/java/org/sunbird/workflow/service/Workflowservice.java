@@ -52,5 +52,4 @@ public interface Workflowservice {
 
     public ResponseEntity<InputStreamResource> downloadBulkUploadFile(String fileName);
 
-    public Response profileChangeRequestWithdraw(String wid, WfRequest wfRequest);
 }

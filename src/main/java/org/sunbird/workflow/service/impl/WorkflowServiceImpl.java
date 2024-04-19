@@ -419,7 +419,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 			throw new InvalidDataInputException(Constants.ACTION_VALIDATION_ERROR);
 		}
 
-		if (CollectionUtils.isEmpty(wfRequest.getUpdateFieldValues())) {
+		if (!"WITHDRAW".equalsIgnoreCase(wfRequest.getAction()) && CollectionUtils.isEmpty(wfRequest.getUpdateFieldValues())) {
 			throw new InvalidDataInputException(Constants.FIELD_VALUE_VALIDATION_ERROR);
 		}
 
@@ -765,17 +765,20 @@ public class WorkflowServiceImpl implements Workflowservice {
 
 	@Override
 	public Response getUserWFApplicationFields(String rootOrg, String org, String wid, SearchCriteria criteria) {
-		List<String> updatedFieldValues = wfStatusRepo.findWfFieldsForUser(rootOrg, org, criteria.getServiceName(), criteria.getApplicationStatus(), wid);
+		List<Object[]> updatedFieldValues = wfStatusRepo.findWfFieldsForUser(rootOrg, org, criteria.getServiceName(), criteria.getApplicationStatus(), wid);
 		TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
 		};
-		Map<String,Object> toValuesMap = new HashMap<>();
-		for (String fields : updatedFieldValues) {
+		List<Map<String, Object>> result = new ArrayList<>();
+		for (Object[] fields : updatedFieldValues) {
 			if (!StringUtils.isEmpty(fields)) {
 				try {
-					List<HashMap<String, Object>> values = mapper.readValue(fields, typeRef);
+					List<HashMap<String, Object>> values = mapper.readValue((String)fields[0], typeRef);
 					for (HashMap<String, Object> wffieldReq : values) {
+						Map<String, Object> resultData = new LinkedHashMap<>();
 						HashMap<String, Object> toValueMap = (HashMap<String, Object>) wffieldReq.get("toValue");
-						toValuesMap.put(toValueMap.entrySet().iterator().next().getKey(),toValueMap.entrySet().iterator().next().getValue());
+						resultData.put("wfId", fields[1]);
+						resultData.put(toValueMap.entrySet().iterator().next().getKey(),toValueMap.entrySet().iterator().next().getValue());
+						result.add(resultData);
 					}
 				} catch (IOException e) {
 					log.error("Exception occurred while parsing wf fields!");
@@ -785,7 +788,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 		}
 		Response response = new Response();
 		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
-		response.put(Constants.DATA, toValuesMap);
+		response.put(Constants.DATA, result);
 		response.put(Constants.STATUS, HttpStatus.OK);
 		return response;
 	}
@@ -1090,51 +1093,6 @@ public class WorkflowServiceImpl implements Workflowservice {
 		response.getParams().setStatus(Constants.FAILED);
 		response.getParams().setErrmsg(errMsg);
 		response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
-	}
-
-	@Override
-	public Response profileChangeRequestWithdraw(String userId, WfRequest wfRequest) {
-		Response response = new Response();
-		response.setResponseCode(HttpStatus.OK);
-		response.put(Constants.MESSAGE, "Your Request has been withdrawn successfully");
-		try {
-			List<WfStatusEntity> userUpdateProfileRequests = wfStatusRepo. findByServiceNameAndCurrentStatusAndApplicationIdIn(wfRequest.getServiceName(), wfRequest.getState(), Collections.singletonList(userId));
-			TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
-			};
-			boolean breakLoop = false;
-			WfStatusEntity requiredWfStatusEntity = null;
-			for (WfStatusEntity wfStatusEntity : userUpdateProfileRequests) {
-				if (breakLoop)
-					break;
-				List<HashMap<String, Object>> values = mapper.readValue(wfStatusEntity.getUpdateFieldValues(), typeRef);
-				for (HashMap<String, Object> updatedValuesMap : values) {
-					if (breakLoop)
-						break;
-					if (updatedValuesMap.containsKey(Constants.FROM_VALUE)) {
-						Map<String, Object> fieldToBeUpdated = (Map<String, Object>) updatedValuesMap.get(Constants.FROM_VALUE);
-						for (Map.Entry<String, Object> fieldEntry : fieldToBeUpdated.entrySet()) {
-							if (fieldEntry.getKey().equalsIgnoreCase(wfRequest.getFieldName())) {
-								requiredWfStatusEntity = wfStatusEntity;
-								breakLoop = true;
-								break;
-							}
-						}
-					}
-				}
-			}
-			if (null != requiredWfStatusEntity) {
-				requiredWfStatusEntity.setCurrentStatus("Withdrawn");
-				requiredWfStatusEntity.setInWorkflow(Boolean.FALSE);
-				requiredWfStatusEntity.setLastUpdatedOn(new Date());
-				requiredWfStatusEntity.setComment("Withdrawn By User");
-				wfStatusRepo.save(requiredWfStatusEntity);
-			}
-		} catch (Exception e) {
-			log.info("An error occurred while withdrawing the request {}", e.getMessage());
-			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
-			response.put(Constants.ERROR_MESSAGE, "An Exception occurred while withdrawing request");
-		}
-		return response;
 	}
 
 }
