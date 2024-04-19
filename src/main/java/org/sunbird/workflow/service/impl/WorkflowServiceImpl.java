@@ -8,13 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -22,7 +16,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -425,7 +418,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 			throw new InvalidDataInputException(Constants.ACTION_VALIDATION_ERROR);
 		}
 
-		if (CollectionUtils.isEmpty(wfRequest.getUpdateFieldValues())) {
+		if (!Constants.WITHDRAW.equalsIgnoreCase(wfRequest.getAction()) && CollectionUtils.isEmpty(wfRequest.getUpdateFieldValues())) {
 			throw new InvalidDataInputException(Constants.FIELD_VALUE_VALIDATION_ERROR);
 		}
 
@@ -771,28 +764,32 @@ public class WorkflowServiceImpl implements Workflowservice {
 
 	@Override
 	public Response getUserWFApplicationFields(String rootOrg, String org, String wid, SearchCriteria criteria) {
-		List<String> updatedFieldValues = wfStatusRepo.findWfFieldsForUser(rootOrg, org, criteria.getServiceName(), criteria.getApplicationStatus(), wid);
+		Response response = new Response();
+		response.put(Constants.STATUS, HttpStatus.OK);
+		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
+		List<Object[]> updatedFieldValues = wfStatusRepo.findWfFieldsForUser(criteria.getServiceName(), criteria.getApplicationStatus(), wid);
 		TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
 		};
-		Map<String,Object> toValuesMap = new HashMap<>();
-		for (String fields : updatedFieldValues) {
-			if (!StringUtils.isEmpty(fields)) {
+		List<Map<String, Object>> result = new ArrayList<>();
+		for (Object[] fields : updatedFieldValues) {
+			if (!ObjectUtils.isEmpty(fields)) {
 				try {
-					List<HashMap<String, Object>> values = mapper.readValue(fields, typeRef);
+					List<HashMap<String, Object>> values = mapper.readValue((String)fields[0], typeRef);
 					for (HashMap<String, Object> wffieldReq : values) {
+						Map<String, Object> resultData = new LinkedHashMap<>();
 						HashMap<String, Object> toValueMap = (HashMap<String, Object>) wffieldReq.get("toValue");
-						toValuesMap.put(toValueMap.entrySet().iterator().next().getKey(),toValueMap.entrySet().iterator().next().getValue());
+						resultData.put("wfId", fields[1]);
+						resultData.put(toValueMap.entrySet().iterator().next().getKey(),toValueMap.entrySet().iterator().next().getValue());
+						result.add(resultData);
 					}
+					response.put(Constants.DATA, result);
 				} catch (IOException e) {
-					log.error("Exception occurred while parsing wf fields!");
-                    log.error(e.toString());
+					log.error("Exception occurred while parsing wf fields!", e);
+					response.put(Constants.STATUS, HttpStatus.INTERNAL_SERVER_ERROR);
+					response.put(Constants.MESSAGE, "Exception occurred while fetching requested fields for approval");
 				}
 			}
 		}
-		Response response = new Response();
-		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
-		response.put(Constants.DATA, toValuesMap);
-		response.put(Constants.STATUS, HttpStatus.OK);
 		return response;
 	}
 
