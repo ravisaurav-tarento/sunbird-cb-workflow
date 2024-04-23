@@ -99,6 +99,6 @@ public interface WfStatusRepo extends JpaRepository<WfStatusEntity, String> {
     List<WfStatusEntity> findByUserIdAndCurrentStatus(String userId, boolean currentStatus);
 
     @Query(value = "select update_field_values, wf_id from wingspan.wf_status where service_name = ?1 and current_status = ?2 and userid = ?3", nativeQuery = true)
-    List<Object[]> findWfFieldsForUserUpdated(String servicename , String status, String userId);
+    List<Object[]> findWfFieldsForUserV2(String servicename , String status, String userId);
 }
 

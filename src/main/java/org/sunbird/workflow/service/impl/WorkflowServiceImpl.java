@@ -1096,7 +1096,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 		Response response = new Response();
 		response.put(Constants.STATUS, HttpStatus.OK);
 		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
-		List<Object[]> updatedFieldValues = wfStatusRepo.findWfFieldsForUserUpdated(criteria.getServiceName(), criteria.getApplicationStatus(), wid);
+		List<Object[]> updatedFieldValues = wfStatusRepo.findWfFieldsForUserV2(criteria.getServiceName(), criteria.getApplicationStatus(), wid);
 		TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
 		};
 		List<Map<String, Object>> result = new ArrayList<>();

@@ -11,7 +11,7 @@ import org.sunbird.workflow.service.Workflowservice;
 
 @RestController
 @RequestMapping("/v2/workflow")
-public class ProfileWorkflowController {
+public class WorkFlowControllerV2 {
 
     @Autowired
     private Workflowservice workflowService;
