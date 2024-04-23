@@ -1100,6 +1100,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 		TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
 		};
 		List<Map<String, Object>> result = new ArrayList<>();
+		response.put(Constants.DATA, result);
 		for (Object[] fields : updatedFieldValues) {
 			if (!ObjectUtils.isEmpty(fields)) {
 				try {
