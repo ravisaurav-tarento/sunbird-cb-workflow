@@ -764,32 +764,28 @@ public class WorkflowServiceImpl implements Workflowservice {
 
 	@Override
 	public Response getUserWFApplicationFields(String rootOrg, String org, String wid, SearchCriteria criteria) {
-		Response response = new Response();
-		response.put(Constants.STATUS, HttpStatus.OK);
-		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
-		List<Object[]> updatedFieldValues = wfStatusRepo.findWfFieldsForUser(criteria.getServiceName(), criteria.getApplicationStatus(), wid);
+		List<String> updatedFieldValues = wfStatusRepo.findWfFieldsForUser(rootOrg, org, criteria.getServiceName(), criteria.getApplicationStatus(), wid);
 		TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
 		};
-		List<Map<String, Object>> result = new ArrayList<>();
-		for (Object[] fields : updatedFieldValues) {
-			if (!ObjectUtils.isEmpty(fields)) {
+		Map<String,Object> toValuesMap = new HashMap<>();
+		for (String fields : updatedFieldValues) {
+			if (!StringUtils.isEmpty(fields)) {
 				try {
-					List<HashMap<String, Object>> values = mapper.readValue((String)fields[0], typeRef);
+					List<HashMap<String, Object>> values = mapper.readValue(fields, typeRef);
 					for (HashMap<String, Object> wffieldReq : values) {
-						Map<String, Object> resultData = new LinkedHashMap<>();
 						HashMap<String, Object> toValueMap = (HashMap<String, Object>) wffieldReq.get("toValue");
-						resultData.put("wfId", fields[1]);
-						resultData.put(toValueMap.entrySet().iterator().next().getKey(),toValueMap.entrySet().iterator().next().getValue());
-						result.add(resultData);
+						toValuesMap.put(toValueMap.entrySet().iterator().next().getKey(),toValueMap.entrySet().iterator().next().getValue());
 					}
-					response.put(Constants.DATA, result);
 				} catch (IOException e) {
-					log.error("Exception occurred while parsing wf fields!", e);
-					response.put(Constants.STATUS, HttpStatus.INTERNAL_SERVER_ERROR);
-					response.put(Constants.MESSAGE, "Exception occurred while fetching requested fields for approval");
+					log.error("Exception occurred while parsing wf fields!");
+                    log.error(e.toString());
 				}
 			}
 		}
+		Response response = new Response();
+		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
+		response.put(Constants.DATA, toValuesMap);
+		response.put(Constants.STATUS, HttpStatus.OK);
 		return response;
 	}
 
@@ -1093,6 +1089,39 @@ public class WorkflowServiceImpl implements Workflowservice {
 		response.getParams().setStatus(Constants.FAILED);
 		response.getParams().setErrmsg(errMsg);
 		response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	@Override
+	public Response getUserWFApplicationFieldsV2(String rootOrg, String org, String wid, SearchCriteria criteria) {
+		Response response = new Response();
+		response.put(Constants.STATUS, HttpStatus.OK);
+		response.put(Constants.MESSAGE, Constants.SUCCESSFUL);
+		try {
+			List<Object[]> updatedFieldValues = wfStatusRepo.findWfFieldsForUserV2(criteria.getServiceName(), criteria.getApplicationStatus(), wid);
+			TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
+			};
+			List<Map<String, Object>> result = new ArrayList<>();
+			response.put(Constants.DATA, result);
+			for (Object[] fields : updatedFieldValues) {
+				if (!ObjectUtils.isEmpty(fields)) {
+					List<HashMap<String, Object>> values = mapper.readValue((String) fields[0], typeRef);
+					for (HashMap<String, Object> wffieldReq : values) {
+						Map<String, Object> resultData = new LinkedHashMap<>();
+						HashMap<String, Object> toValueMap = (HashMap<String, Object>) wffieldReq.get("toValue");
+						resultData.put("wfId", fields[1]);
+						resultData.put(toValueMap.entrySet().iterator().next().getKey(), toValueMap.entrySet().iterator().next().getValue());
+						result.add(resultData);
+					}
+				}
+			}
+			response.put(Constants.DATA, result);
+		} catch (Exception e) {
+			log.error("Exception occurred while parsing wf fields!", e);
+			response.put(Constants.DATA, new ArrayList<>());
+			response.put(Constants.STATUS, HttpStatus.INTERNAL_SERVER_ERROR);
+			response.put(Constants.MESSAGE, "Exception occurred while fetching requested fields for approval");
+		}
+		return response;
 	}
 
 }
