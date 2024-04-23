@@ -36,8 +36,8 @@ public interface WfStatusRepo extends JpaRepository<WfStatusEntity, String> {
 
     List<WfStatusEntity> findByRootOrgAndOrgAndServiceNameAndCurrentStatusAndUserId(String rootOrg, String org, String servicename , String status, String userId);
     
-    @Query(value = "select update_field_values, wf_id from wingspan.wf_status where service_name = ?1 and current_status = ?2 and userid = ?3", nativeQuery = true)
-    List<Object[]> findWfFieldsForUser(String servicename , String status, String userId);
+    @Query(value = "select update_field_values from wingspan.wf_status where root_org= ?1 and org = ?2 and service_name = ?3 and current_status = ?4 and userid = ?5", nativeQuery = true)
+    List<String> findWfFieldsForUser(String rootOrg, String org, String servicename , String status, String userId);
 
     @Query(value = "select * from wingspan.wf_status where service_name= ?1 and current_status = ?2 and dept_Name = ?3", nativeQuery = true)
     List<WfStatusEntity> findByServiceNameAndCurrentStatusAndDeptName(String serviceName, String currentStatus, String deptName);
@@ -97,5 +97,8 @@ public interface WfStatusRepo extends JpaRepository<WfStatusEntity, String> {
 
     @Query(value = "select * from wingspan.wf_status  where userid = ?1 and in_workflow=?2", nativeQuery = true)
     List<WfStatusEntity> findByUserIdAndCurrentStatus(String userId, boolean currentStatus);
+
+    @Query(value = "select update_field_values, wf_id from wingspan.wf_status where service_name = ?1 and current_status = ?2 and userid = ?3", nativeQuery = true)
+    List<Object[]> findWfFieldsForUserUpdated(String servicename , String status, String userId);
 }
 

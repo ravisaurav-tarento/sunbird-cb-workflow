@@ -122,4 +122,11 @@ public class WorkFlowController {
 	public ResponseEntity<?> downloadBulkuplodFile(@PathVariable("fileName") String fileName) {
 		return workflowService.downloadBulkUploadFile(fileName);
 	}
+
+	@PostMapping(path = "/v2/getUserWFApplicationFields", produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Response> getUserWFApplicationFieldsV2(@RequestHeader String rootOrg, @RequestHeader String org,
+															   @RequestHeader String wid, @RequestBody SearchCriteria searchCriteria) {
+		Response response = workflowService.getUserWFApplicationFieldsV2(rootOrg, org, wid, searchCriteria);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
 }
