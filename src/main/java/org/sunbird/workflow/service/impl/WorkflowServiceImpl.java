@@ -1110,6 +1110,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 						HashMap<String, Object> toValueMap = (HashMap<String, Object>) wffieldReq.get("toValue");
 						resultData.put("wfId", fields[1]);
 						resultData.put(toValueMap.entrySet().iterator().next().getKey(), toValueMap.entrySet().iterator().next().getValue());
+						resultData.put(Constants.COMMENT, fields[2]);
 						result.add(resultData);
 					}
 				}
