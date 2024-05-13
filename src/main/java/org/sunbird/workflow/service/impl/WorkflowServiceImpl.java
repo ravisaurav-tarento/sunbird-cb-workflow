@@ -933,16 +933,16 @@ public class WorkflowServiceImpl implements Workflowservice {
 			if (StringUtils.isEmpty(userId)) {
 				setErrorData(response, "Invalid User Token");
 				response.setResponseCode(HttpStatus.BAD_REQUEST);
-				log.error("Failed to process bulk update. Error: Invalid user token");
+				log.error("Failed to get uploaded file status. Error: Invalid user token");
 				return response;
 			}
 			Map<String, Object> propertyMap = new HashMap<>();
-			propertyMap.put(Constants.USER_ID, userId);
+			propertyMap.put(Constants.ID, userId);
 			List<Map<String, Object>> userDetails = cassandraOperation.getRecordsByProperties(
 					Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap, Arrays.asList(Constants.ROOT_ORG_ID));
 			
 			if (userDetails.isEmpty()) {
-				setErrorData(response, String.format("Failed to upload file. Error: User not found for Id: %s", userId));
+				setErrorData(response, String.format("Failed to get uploaded file status. Error: User not found for Id: %s", userId));
 				log.error("Record not found in :" + Constants.USER_TABLE + Constants.DB_TABLE_NAME);
 				return response;
 			}
@@ -977,7 +977,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 				return response;
 			}
 			Map<String, Object> propertyMap = new HashMap<>();
-			propertyMap.put(Constants.USER_ID, userId);
+			propertyMap.put(Constants.ID, userId);
 			List<Map<String, Object>> userDetails = cassandraOperation.getRecordsByProperties(
 					Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap, Arrays.asList(Constants.ROOT_ORG_ID));
 			
