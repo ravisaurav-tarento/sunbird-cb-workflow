@@ -212,6 +212,9 @@ public class Configuration {
     @Value("${kafka.topics.user.bulk.update}")
     private String userBulkUpdateTopic;
 
+    @Value("${mdo.org.change.email.template}")
+    private String orgChangeNotificationTemplate;
+
     public String getModificationRecordAllowActions() {
         return modificationRecordAllowActions;
     }
@@ -770,5 +773,13 @@ public class Configuration {
 
     public void setUserBulkUpdateTopic(String userBulkUpdateTopic) {
         this.userBulkUpdateTopic = userBulkUpdateTopic;
+    }
+
+    public String getOrgChangeNotificationTemplate() {
+        return orgChangeNotificationTemplate;
+    }
+
+    public void setOrgChangeNotificationTemplate(String orgChangeNotificationTemplate) {
+        this.orgChangeNotificationTemplate = orgChangeNotificationTemplate;
     }
 }
