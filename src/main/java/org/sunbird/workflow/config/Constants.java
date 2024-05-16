@@ -318,7 +318,6 @@ public class Constants {
 	public static final String BODY = "body";
 	public static final String SUBJECT = "subject";
 	public static final String EMAIL_LIST = "emailList";
-
 	public static final String TRANSFER_SUBJECT_LINE = "Transfer Notification: #username";
 
 }
