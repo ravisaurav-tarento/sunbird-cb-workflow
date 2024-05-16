@@ -110,6 +110,7 @@ public class NotificationServiceImpl {
 	 * @param wfRequest workflow request
 	 */
 	public void sendNotification(WfRequest wfRequest) {
+		boolean sendEmailnotification = true;
 		WfStatusEntity wfStatusEntity = wfStatusRepo.findByApplicationIdAndWfId(wfRequest.getApplicationId(),
 				wfRequest.getWfId());
 		WfStatus wfStatus = workflowservice.getWorkflowStates(wfStatusEntity.getRootOrg(), wfStatusEntity.getOrg(),
@@ -179,23 +180,36 @@ public class NotificationServiceImpl {
 							body = BP_MAIL_BODY.replace(STATE_NAME_TAG, wfStatusEntity.getCurrentStatus());
 							break;
 					}
-				}
-				else {
-					HashMap<String, Object> toValue = (HashMap<String, Object>) updatedFieldValue.get().get(TO_VALUE_CONST);
-					body = MAIL_BODY.replace(STATE_NAME_TAG, wfStatusEntity.getCurrentStatus())
-							.replace(FIELD_KEY_TAG, toValue.entrySet().iterator().next().getKey()).replace(TO_VALUE_TAG, (String) toValue.entrySet().iterator().next().getValue());
-					subjectLine = MAIL_SUBJECT.replace(STATE_NAME_TAG, wfStatusEntity.getCurrentStatus());
+				} else {
+					String fieldKey;
+					List<HashMap<String, Object>> values = wfRequest.getUpdateFieldValues();
+					for (Map<String, Object> fieldMap : values) {
+						if (!fieldMap.containsKey(Constants.TO_VALUE))
+							continue;
+						Map<String, Object> toValueMap = (Map<String, Object>) fieldMap.get(Constants.TO_VALUE);
+						fieldKey = toValueMap.entrySet().stream().findFirst().get().getKey();
+						if (Constants.APPROVE_STATE.equalsIgnoreCase(wfRequest.getAction()) && Constants.NAME.equalsIgnoreCase(fieldKey)) {
+							sendEmailnotification = false;
+						}
+						HashMap<String, Object> toValue = (HashMap<String, Object>) updatedFieldValue.get().get(TO_VALUE_CONST);
+						body = MAIL_BODY.replace(STATE_NAME_TAG, wfStatusEntity.getCurrentStatus())
+								.replace(FIELD_KEY_TAG, toValue.entrySet().iterator().next().getKey()).replace(TO_VALUE_TAG, (String) toValue.entrySet().iterator().next().getValue());
+						subjectLine = MAIL_SUBJECT.replace(STATE_NAME_TAG, wfStatusEntity.getCurrentStatus());
+
+					}
 				}
 			}
 			if (StringUtils.isNotBlank(wfRequest.getComment())) {
 				body = body.substring(0, body.length() - 1) + ", due to <b>" + wfRequest.getComment() + "</b>.";
 			}
 			Map<String, Object> mailNotificationDetails = new HashMap<>();
-			mailNotificationDetails.put("emailTo", senderInfo.get(Constants.FIRST_NAME));
-			mailNotificationDetails.put("body", body);
-			mailNotificationDetails.put("subject", subjectLine);
-			mailNotificationDetails.put("emailList", Collections.singletonList(senderInfo.get(Constants.EMAIL)));
-			sendNotificationEmail(mailNotificationDetails);
+			mailNotificationDetails.put(Constants.EMAIL_TO, senderInfo.get(Constants.FIRST_NAME));
+			mailNotificationDetails.put(Constants.BODY, body);
+			mailNotificationDetails.put(Constants.SUBJECT, subjectLine);
+			mailNotificationDetails.put(Constants.EMAIL_LIST, Collections.singletonList(senderInfo.get(Constants.EMAIL)));
+			if(sendEmailnotification){
+				sendNotificationEmail(mailNotificationDetails);
+			}
 		}
 	}
 
@@ -499,16 +513,7 @@ public class NotificationServiceImpl {
 	}
 
 	public void sendMailToMDOForOrgChange(WfRequest wfRequest){
-
-		Map<String, Object> propertyMap = new HashMap<>();
-		propertyMap.put(Constants.USER_ID, wfRequest.getApplicationId());
-		List<Map<String, Object>> userDetails = cassandraOperation.getRecordsByProperties(
-				Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap, Arrays.asList(Constants.ROOT_ORG_ID));
-		String rootOrgId = null;
-		if (!userDetails.isEmpty()) {
-			rootOrgId = (String) userDetails.get(0).get(Constants.USER_ROOT_ORG_ID);
-		}
-		List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(rootOrgId, Collections.singletonList(Constants.MDO_ADMIN));
+		List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(wfRequest.getRootOrgId(), Collections.singletonList(Constants.MDO_ADMIN));
 		Map<String, Object> params = new HashMap<>();
 		NotificationRequest request = new NotificationRequest();
 		request.setDeliveryType("message");
