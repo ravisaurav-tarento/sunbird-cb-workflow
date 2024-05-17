@@ -8,7 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -186,15 +185,6 @@ public class WorkflowServiceImpl implements Workflowservice {
 			applicationStatus.setServiceName(serviceName);
 			addModificationEntry(applicationStatus,userId,wfRequest.getAction(),role);
 			wfStatusRepo.save(applicationStatus);
-			Map<String, Object> keyMap = new HashMap<>();
-			keyMap.put(Constants.ID, wfRequest.getUserId());
-			List<String> fields = new ArrayList<>();
-			fields.add(Constants.ROOT_ORG_ID_LOWER);
-			List<Map<String, Object>> resultData = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE,keyMap, fields);
-			if(!CollectionUtils.isEmpty(resultData)){
-				String rootOrgId = (String) resultData.get(0).get(Constants.ROOT_ORG_ID_LOWER);
-				wfRequest.setRootOrgId(rootOrgId);
-			}
 			producer.push(configuration.getWorkFlowNotificationTopic(), wfRequest);
 			producer.push(configuration.getWorkflowApplicationTopic(), wfRequest);
 
