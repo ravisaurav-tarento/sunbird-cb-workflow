@@ -49,4 +49,25 @@ public class ValidationUtil {
 		return false;
 	}
 
+	public static Boolean validateExternalSystemId(String externalSystemId) {
+		return externalSystemId.matches("^(?=.{1,30}$)[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$");
+	}
+
+	public static Boolean validateExternalSystem(String externalSystem) {
+		return externalSystem.matches("[a-zA-Z ]{0,255}$");
+	}
+
+	public static Boolean validateFullName(String firstName) {
+		return firstName.matches("^(?!.*\\n)[a-zA-Z]+(?:['\\s][a-zA-Z]+)*(?<!\\.|\\s)$");
+	}
+
+	public static Boolean validateTag(List<String> tags) {
+		String regEx = DEFAULT_BULK_UPLOAD_VERIFICATION_REGEX;
+		for (String tag : tags) {
+			if (!tag.matches(regEx)) {
+				return false;
+			}
+		}
+		return true;
+	}
 }
