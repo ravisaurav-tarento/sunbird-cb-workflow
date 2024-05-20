@@ -260,51 +260,64 @@ public class NotificationServiceImpl {
 		}
 	}
 
-	public void sendNotificationToMdoAdmin(WfRequest wfRequest) {
+	public void sendNotificationToMdoAdmin(WfRequest wfRequest) throws IOException {
 		WfStatusEntity wfStatusEntity = wfStatusRepo.findByApplicationIdAndWfId(wfRequest.getApplicationId(),
 				wfRequest.getWfId());
-		WfStatus wfStatus = workflowservice.getWorkflowStates(wfStatusEntity.getRootOrg(), wfStatusEntity.getOrg(),
-				wfStatusEntity.getServiceName(), wfStatusEntity.getCurrentStatus());
-		if (!ObjectUtils.isEmpty(wfStatus.getNotificationEnable()) && wfStatus.getNotificationEnable()
-				&& !Arrays.asList(Constants.REJECTED, Constants.APPROVED).contains(wfStatus.getState())) {
-			logger.info("Enter in the notification block");
-			List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(wfRequest.getRootOrgId(), Collections.singletonList(Constants.MDO_ADMIN));
-			Map<String, Object> params = new HashMap<>();
-			NotificationRequest request = new NotificationRequest();
-			request.setDeliveryType("message");
-			List<String> mdoMailList = mdoAdminList.stream().collect(Collectors.toList());
-			if (!CollectionUtils.isEmpty(mdoMailList)) {
-				request.setIds(mdoMailList);
-				request.setMode("email");
-				Template template = new Template();
-				template.setId(configuration.getMdoEmailTemplate());
-				HashMap<String, Object> usersObj = userProfileWfService.getUsersResult(Collections.singleton(wfRequest.getUserId()));
-				Map<String, Object> recipientInfo = (Map<String, Object>) usersObj.get(wfStatusEntity.getUserId());
-				params.put(Constants.USER_NAME, recipientInfo.get(Constants.FIRST_NAME));
-				Optional<HashMap<String, Object>> updatedFieldValue = wfRequest.getUpdateFieldValues().stream().findFirst();
-				if (updatedFieldValue.isPresent()) {
-					HashMap<String, Object> toValue = (HashMap<String, Object>) updatedFieldValue.get().get(TO_VALUE_CONST);
-					List<String> fieldNames = toValue.keySet().stream().collect(Collectors.toList());
-					String approvalUrl = configuration.getDomainHost() + configuration.getMdoBaseUrl().replace("{id}", wfRequest.getApplicationId());
-					params.put(Constants.LINK, approvalUrl);
-					params.put(Constants.FIELDS, fieldNames);
-					params.put(Constants.SUPPORT_EMAIL, configuration.getSenderMail());
+		String fieldKey = null;
+		List<HashMap<String, Object>> values =  wfRequest.getUpdateFieldValues();
+		for(Map<String, Object> fieldMap : values){
+			if(!fieldMap.containsKey(Constants.TO_VALUE))
+				continue;
+			Map<String, Object> toValueMap= (Map<String, Object>) fieldMap.get(Constants.TO_VALUE);
+			fieldKey = toValueMap.entrySet().stream().findFirst().get().getKey();
+
+		}
+		if(Constants.APPROVE_STATE.equalsIgnoreCase(wfRequest.getAction()) && Constants.NAME.equalsIgnoreCase(fieldKey)){
+			this.sendMailToMDOForOrgChange(wfRequest);
+		} else{
+			WfStatus wfStatus = workflowservice.getWorkflowStates(wfStatusEntity.getRootOrg(), wfStatusEntity.getOrg(),
+					wfStatusEntity.getServiceName(), wfStatusEntity.getCurrentStatus());
+			if (!ObjectUtils.isEmpty(wfStatus.getNotificationEnable()) && wfStatus.getNotificationEnable()
+					&& !Arrays.asList(Constants.REJECTED, Constants.APPROVED).contains(wfStatus.getState())) {
+				logger.info("Enter in the notification block");
+				List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(wfRequest.getRootOrgId(), Collections.singletonList(Constants.MDO_ADMIN));
+				Map<String, Object> params = new HashMap<>();
+				NotificationRequest request = new NotificationRequest();
+				request.setDeliveryType("message");
+				List<String> mdoMailList = mdoAdminList.stream().collect(Collectors.toList());
+				if (!CollectionUtils.isEmpty(mdoMailList)) {
+					request.setIds(mdoMailList);
+					request.setMode("email");
+					Template template = new Template();
+					template.setId(configuration.getMdoEmailTemplate());
+					HashMap<String, Object> usersObj = userProfileWfService.getUsersResult(Collections.singleton(wfRequest.getUserId()));
+					Map<String, Object> recipientInfo = (Map<String, Object>) usersObj.get(wfStatusEntity.getUserId());
+					params.put(Constants.USER_NAME, recipientInfo.get(Constants.FIRST_NAME));
+					Optional<HashMap<String, Object>> updatedFieldValue = wfRequest.getUpdateFieldValues().stream().findFirst();
+					if (updatedFieldValue.isPresent()) {
+						HashMap<String, Object> toValue = (HashMap<String, Object>) updatedFieldValue.get().get(TO_VALUE_CONST);
+						List<String> fieldNames = toValue.keySet().stream().collect(Collectors.toList());
+						String approvalUrl = configuration.getDomainHost() + configuration.getMdoBaseUrl().replace("{id}", wfRequest.getApplicationId());
+						params.put(Constants.LINK, approvalUrl);
+						params.put(Constants.FIELDS, fieldNames);
+						params.put(Constants.SUPPORT_EMAIL, configuration.getSenderMail());
+					}
+					String constructedEmailTemplate = constructEmailTemplate(configuration.getMdoEmailTemplate(), params);
+					if (StringUtils.isNotEmpty(constructedEmailTemplate)) {
+						template.setData(constructedEmailTemplate);
+					}
+					template.setParams(params);
+					Config config = new Config();
+					config.setSubject(MDO_MAIL_SUBJECT);
+					config.setSender(configuration.getSenderMail());
+					Map<String, Object> req = new HashMap<>();
+					request.setTemplate(template);
+					request.setConfig(config);
+					Map<String, List<NotificationRequest>> notificationMap = new HashMap<>();
+					notificationMap.put("notifications", Arrays.asList(request));
+					req.put("request", notificationMap);
+					sendNotification(req);
 				}
-				String constructedEmailTemplate = constructEmailTemplate(configuration.getMdoEmailTemplate(), params);
-				if (StringUtils.isNotEmpty(constructedEmailTemplate)) {
-					template.setData(constructedEmailTemplate);
-				}
-				template.setParams(params);
-				Config config = new Config();
-				config.setSubject(MDO_MAIL_SUBJECT);
-				config.setSender(configuration.getSenderMail());
-				Map<String, Object> req = new HashMap<>();
-				request.setTemplate(template);
-				request.setConfig(config);
-				Map<String, List<NotificationRequest>> notificationMap = new HashMap<>();
-				notificationMap.put("notifications", Arrays.asList(request));
-				req.put("request", notificationMap);
-				sendNotification(req);
 			}
 		}
 	}
@@ -474,6 +487,50 @@ public class NotificationServiceImpl {
 			template.setParams(params);
 			Config config = new Config();
 			config.setSubject((String) mailNotificationDetails.get("subject"));
+			config.setSender(configuration.getSenderMail());
+			Map<String, Object> req = new HashMap<>();
+			request.setTemplate(template);
+			request.setConfig(config);
+			Map<String, List<NotificationRequest>> notificationMap = new HashMap<>();
+			notificationMap.put("notifications", Arrays.asList(request));
+			req.put("request", notificationMap);
+			sendNotification(req);
+		}
+	}
+
+	public void sendMailToMDOForOrgChange(WfRequest wfRequest){
+
+		Map<String, Object> propertyMap = new HashMap<>();
+		propertyMap.put(Constants.USER_ID, wfRequest.getApplicationId());
+		List<Map<String, Object>> userDetails = cassandraOperation.getRecordsByProperties(
+				Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap, Arrays.asList(Constants.ROOT_ORG_ID));
+		String rootOrgId = null;
+		if (!userDetails.isEmpty()) {
+			rootOrgId = (String) userDetails.get(0).get(Constants.USER_ROOT_ORG_ID);
+		}
+		List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(rootOrgId, Collections.singletonList(Constants.MDO_ADMIN));
+		Map<String, Object> params = new HashMap<>();
+		NotificationRequest request = new NotificationRequest();
+		request.setDeliveryType("message");
+		List<String> mdoMailList = mdoAdminList.stream().collect(Collectors.toList());
+		if (!CollectionUtils.isEmpty(mdoMailList)) {
+			request.setIds(mdoMailList);
+			request.setMode("email");
+			Template template = new Template();
+			template.setId(configuration.getOrgChangeNotificationTemplate());
+			HashMap<String, Object> usersObj = userProfileWfService.getUsersResult(Collections.singleton(wfRequest.getUserId()));
+			Map<String, Object> recipientInfo = (Map<String, Object>) usersObj.get(wfRequest.getUserId());
+			String username = (String) recipientInfo.get(Constants.FIRST_NAME);
+			params.put(Constants.USER_NAME, username);
+			params.put(Constants.SENDER , Constants.KARMYOGI_BHARAT);
+			params.put(Constants.SUPPORT_EMAIL, configuration.getSenderMail());
+			String constructedEmailTemplate = constructEmailTemplate(configuration.getOrgChangeNotificationTemplate(), params);
+			if (StringUtils.isNotEmpty(constructedEmailTemplate)) {
+				template.setData(constructedEmailTemplate);
+			}
+			template.setParams(params);
+			Config config = new Config();
+			config.setSubject(Constants.TRANSFER_SUBJECT_LINE.replace( USERNAMAE_TAG, username));
 			config.setSender(configuration.getSenderMail());
 			Map<String, Object> req = new HashMap<>();
 			request.setTemplate(template);
