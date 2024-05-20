@@ -239,6 +239,9 @@ public class WorkflowServiceImpl implements Workflowservice {
 				wfApplicationSearchResponse = applicationSearchOnApplicationIdGroup(rootOrg, searchCriteria, isSearchEnabled);
 				response = getResponse(rootOrg, wfApplicationSearchResponse);
 				response.put(Constants.COUNT,wfApplicationSearchResponse.get(Constants.COUNT));
+				if(searchCriteria.getServiceName().equalsIgnoreCase(Constants.PROFILE_SERVICE_NAME)){
+					this.identifyAndMarkOrgTransferRequest(response);
+				}
 				break;
 			case Constants.BLENDED_PROGRAM_SERVICE_NAME: {
 				if (searchCriteria.getApplicationStatus() != null) {
@@ -1126,4 +1129,39 @@ public class WorkflowServiceImpl implements Workflowservice {
 		return response;
 	}
 
+	public void identifyAndMarkOrgTransferRequest(Response response) {
+		try {
+			List<Map<String, Object>> userDataList = (List<Map<String, Object>>) response.getResult().get(Constants.DATA);
+			TypeReference<List<HashMap<String, Object>>> typeRef = new TypeReference<List<HashMap<String, Object>>>() {
+			};
+			for (Map<String, Object> userData : userDataList) {
+				List<WfStatusEntity> wfInfoList = (List<WfStatusEntity>) userData.get("wfInfo");
+				for (WfStatusEntity wfStatusEntity : wfInfoList) {
+					List<Map<String, Object>> valuesList;
+					valuesList = mapper.readValue(wfStatusEntity.getUpdateFieldValues(), typeRef);
+					for (Map<String, Object> value : valuesList) {
+						if (!value.containsKey(Constants.TO_VALUE))
+							continue;
+						Map<String, Object> toValue = (Map<String, Object>) value.get(Constants.TO_VALUE);
+						Optional<Map.Entry<String, Object>> fieldKeyOpt = toValue.entrySet().stream().findFirst();
+						String updateFieldKey = null;
+						if (fieldKeyOpt.isPresent()) {
+							updateFieldKey = fieldKeyOpt.get().getKey();
+						}
+						if (Constants.NAME.equalsIgnoreCase(updateFieldKey)) {
+							userData.put("isOrgTransferRequest", Boolean.TRUE);
+						} else {
+							userData.put("isOrgTransferRequest", Boolean.FALSE);
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.error("An Error Occurred while fetching details", e);
+			response.put(Constants.DATA, Collections.EMPTY_LIST);
+			response.put(Constants.COUNT, 0);
+			response.put(Constants.MESSAGE, "Exception occurred while fetching requested fields for approval");
+			response.put(Constants.STATUS, Constants.FAILED);
+		}
+	}
 }
