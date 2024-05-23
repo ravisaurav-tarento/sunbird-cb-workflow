@@ -499,16 +499,7 @@ public class NotificationServiceImpl {
 	}
 
 	public void sendMailToMDOForOrgChange(WfRequest wfRequest){
-
-		Map<String, Object> propertyMap = new HashMap<>();
-		propertyMap.put(Constants.USER_ID, wfRequest.getApplicationId());
-		List<Map<String, Object>> userDetails = cassandraOperation.getRecordsByProperties(
-				Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap, Arrays.asList(Constants.ROOT_ORG_ID));
-		String rootOrgId = null;
-		if (!userDetails.isEmpty()) {
-			rootOrgId = (String) userDetails.get(0).get(Constants.USER_ROOT_ORG_ID);
-		}
-		List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(rootOrgId, Collections.singletonList(Constants.MDO_ADMIN));
+		List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(wfRequest.getRootOrgId(), Collections.singletonList(Constants.MDO_ADMIN));
 		Map<String, Object> params = new HashMap<>();
 		NotificationRequest request = new NotificationRequest();
 		request.setDeliveryType("message");

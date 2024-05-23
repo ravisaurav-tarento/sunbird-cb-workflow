@@ -184,7 +184,27 @@ public class WorkflowServiceImpl implements Workflowservice {
 			applicationStatus.setComment(wfRequest.getComment());
 			applicationStatus.setServiceName(serviceName);
 			addModificationEntry(applicationStatus,userId,wfRequest.getAction(),role);
+			String fieldKey = null;
 			wfStatusRepo.save(applicationStatus);
+			List<HashMap<String, Object>> updatedValueList = wfRequest.getUpdateFieldValues();
+			for(Map<String, Object> updatedValue : updatedValueList){
+				if(updatedValue.containsKey(Constants.TO_VALUE)){
+					Map<String, Object> toValue = (Map<String, Object>) updatedValue.get(Constants.TO_VALUE);
+					fieldKey = toValue.entrySet().stream().findFirst().get().getKey();
+				}
+			}
+			if(!StringUtils.isEmpty(fieldKey) && Constants.NAME.equalsIgnoreCase(fieldKey)){
+				Map<String, Object> propertyMap = new HashMap<>();
+				propertyMap.put(Constants.USER_ID, wfRequest.getApplicationId());
+				List<Map<String, Object>> userDetails = cassandraOperation.getRecordsByProperties(
+						Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap, Arrays.asList(Constants.ROOT_ORG_ID));
+				String rootOrgId = null;
+				if (!CollectionUtils.isEmpty(userDetails)) {
+					rootOrgId = (String) userDetails.get(0).get(Constants.USER_ROOT_ORG_ID);
+				}
+				wfRequest.setRootOrgId(rootOrgId);
+
+			}
 			producer.push(configuration.getWorkFlowNotificationTopic(), wfRequest);
 			producer.push(configuration.getWorkflowApplicationTopic(), wfRequest);
 
