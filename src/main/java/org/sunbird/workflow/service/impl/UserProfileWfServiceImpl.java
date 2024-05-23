@@ -167,13 +167,26 @@ public class UserProfileWfServiceImpl implements UserProfileWfService {
 		} catch (Exception e) {
 			logger.error("Merge profile exception::{}", e);
 		}
+		List<Map<String, Object>> professionDetailsInfoList = (List<Map<String, Object>>)existingProfileDetail.get(Constants.PROFESSIONAL_DETAILS);
+		if(org.apache.commons.collections4.CollectionUtils.isNotEmpty(professionDetailsInfoList)) {
+			if (org.apache.commons.lang3.StringUtils
+					.isNotBlank((String) professionDetailsInfoList.get(0).get(Constants.GROUP)) &&
+					org.apache.commons.lang3.StringUtils
+							.isNotBlank((String) professionDetailsInfoList.get(0)
+									.get(Constants.DESIGNATION))) {
+				existingProfileDetail.put(Constants.PROFILE_STATUS, Constants.VERIFIED);
+			} else {
+				existingProfileDetail.put(Constants.PROFILE_STATUS, Constants.NOT_VERIFIED);
+			}
+		}
+
 		return existingProfileDetail;
 	}
 
 	public static void mergeLeaf(Map<String, Object> mapLeft, Map<String, Object> mapRight, String leafKey, String id) {
 		if (mapLeft.containsKey(leafKey)) {
 			for (String key : mapLeft.keySet()) {
-				if (mapLeft.get(key) instanceof ArrayList) {
+				if (key.equalsIgnoreCase(leafKey) && mapLeft.get(key) instanceof ArrayList) {
 					Set<String> childRequest = mapRight.keySet();
 					for (String keys : childRequest) {
 						List<Map<String, Object>> childExisting = (List<Map<String, Object>>) mapLeft.get(key);

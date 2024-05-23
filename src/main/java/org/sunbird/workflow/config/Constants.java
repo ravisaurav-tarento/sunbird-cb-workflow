@@ -325,5 +325,8 @@ public class Constants {
 	public static final String EXTERNAL_SYSTEM_ID = "externalSystemId";
 	public static final String EXTERNAL_SYSTEM = "externalSystem";
 	public static final String IS_ORG_TRANSFER_REQUEST = "isOrgTransferRequest";
+	public static final String PROFILE_STATUS = "profileStatus";
+	public static final String NOT_VERIFIED = "NOT-VERIFIED";
+	public static final String VERIFIED = "VERIFIED";
 
 }

@@ -162,13 +162,13 @@ public class UserBulkUploadService {
                     } else{
                         boolean emailCellExists = true;
                         boolean phoneCellExists = true;
-                        if(nextRow.getCell(0) == null)
-                            emailCellExists = false;
                         if(nextRow.getCell(1) == null)
-                            phoneCellExists  = false;
-                        if(nextRow.getCell(0) != null && nextRow.getCell(0).getCellType() == CellType.BLANK)
                             emailCellExists = false;
-                        if(nextRow.getCell(1) != null && nextRow.getCell(1).getCellType() == CellType.BLANK)
+                        if(nextRow.getCell(2) == null)
+                            phoneCellExists  = false;
+                        if(nextRow.getCell(1) != null && nextRow.getCell(0).getCellType() == CellType.BLANK)
+                            emailCellExists = false;
+                        if(nextRow.getCell(2) != null && nextRow.getCell(1).getCellType() == CellType.BLANK)
                             phoneCellExists = false;
                         if(!emailCellExists && !phoneCellExists)
                             break;
@@ -184,28 +184,28 @@ public class UserBulkUploadService {
                     if (errorDetails == null) {
                         errorDetails = nextRow.createCell(15);
                     }
-                    if (nextRow.getCell(0) != null && nextRow.getCell(0).getCellType() != CellType.BLANK) {
-                        String email = nextRow.getCell(0).getStringCellValue().trim();
+                    if (nextRow.getCell(1) != null && nextRow.getCell(1).getCellType() != CellType.BLANK) {
+                        String email = nextRow.getCell(1).getStringCellValue().trim();
                         if(ValidationUtil.validateEmailPattern(email)){
                             userDetails = new HashMap<>();
                             isEmailOrPhoneNumberValid = this.verifyUserRecordExists(Constants.EMAIL, email, userDetails);
                         } else{
-                            errList.add("The email provided in Invalid");
+                            errList.add("The Email provided in Invalid");
                         }
                     }
                     if(!isEmailOrPhoneNumberValid){
                         String phoneNumber = null;
                         boolean isValidPhoneNumber = false;
-                        if (nextRow.getCell(1) != null && nextRow.getCell(1).getCellType() != CellType.BLANK) {
-                            if (nextRow.getCell(1).getCellType() == CellType.NUMERIC) {
+                        if (nextRow.getCell(2) != null && nextRow.getCell(2).getCellType() != CellType.BLANK) {
+                            if (nextRow.getCell(2).getCellType() == CellType.NUMERIC) {
                                 phoneNumber = NumberToTextConverter.toText(nextRow.getCell(1).getNumericCellValue());
-                            } else if (nextRow.getCell(1).getCellType() == CellType.STRING) {
-                                phoneNumber = nextRow.getCell(1).getStringCellValue().trim();
+                            } else if (nextRow.getCell(2).getCellType() == CellType.STRING) {
+                                phoneNumber = nextRow.getCell(2).getStringCellValue().trim();
                             } else {
-                                errList.add("Invalid Value of Phone Number. Expecting number/string format");
+                                errList.add("Invalid Value of Mobile Number. Expecting number/string format");
                             }
                         } else {
-                            errList.add("Phone Number is Missing");
+                            errList.add("Mobile Number is Missing");
                         }
                         if(!StringUtils.isEmpty(phoneNumber)){
                             isValidPhoneNumber = ValidationUtil.validateContactPattern(phoneNumber);
@@ -213,12 +213,12 @@ public class UserBulkUploadService {
                                 userDetails = new HashMap<>();
                                 isEmailOrPhoneNumberValid = this.verifyUserRecordExists(Constants.PHONE, phoneNumber, userDetails);
                             } else{
-                                errList.add("The phone number provided is Invalid");
+                                errList.add("The Mobile Number provided is Invalid");
                             }
                         }
                     }
                     if(!isEmailOrPhoneNumberValid){
-                        errList.add("User record does not exist with given email and/or phone number");
+                        errList.add("User record does not exist with given email and/or Mobile Number");
                     } else{
                         errList.clear();
                         String userRootOrgId = (String) userDetails.get(Constants.ROOT_ORG_ID);
@@ -231,10 +231,10 @@ public class UserBulkUploadService {
                             continue;
                         }
                     }
-                    if (nextRow.getCell(2) != null && nextRow.getCell(2).getCellType() != CellType.BLANK) {
-                        if (nextRow.getCell(2).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.FIRSTNAME, nextRow.getCell(2).getStringCellValue().trim());
-                            if (!ValidationUtil.validateFullName(nextRow.getCell(2).getStringCellValue().trim())) {
+                    if (nextRow.getCell(0) != null && nextRow.getCell(0).getCellType() != CellType.BLANK) {
+                        if (nextRow.getCell(0).getCellType() == CellType.STRING) {
+                            valuesToBeUpdate.put(Constants.FIRSTNAME, nextRow.getCell(0).getStringCellValue().trim());
+                            if (!ValidationUtil.validateFullName(nextRow.getCell(0).getStringCellValue().trim())) {
                                 errList.add("Invalid Full Name");
                             }
                         } else {
@@ -243,56 +243,59 @@ public class UserBulkUploadService {
                     }
                     if (nextRow.getCell(3) != null && nextRow.getCell(3).getCellType() != CellType.BLANK) {
                         if (nextRow.getCell(3).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.DESIGNATION, nextRow.getCell(3).getStringCellValue().trim());
-                        } else {
-                            errList.add("Invalid value for Designation type. Expecting string format");
-                        }
-
-                    }
-                    if (nextRow.getCell(4) != null && nextRow.getCell(4).getCellType() != CellType.BLANK) {
-                        if (nextRow.getCell(4).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.GROUP, nextRow.getCell(4).getStringCellValue().trim());
+                            valuesToBeUpdate.put(Constants.GROUP, nextRow.getCell(3).getStringCellValue().trim());
                         } else {
                             errList.add("Invalid value for Group type. Expecting string format");
                         }
                     }
-                    if (nextRow.getCell(5) != null && nextRow.getCell(5).getCellType() != CellType.BLANK) {
-                        if (nextRow.getCell(5).getCellType() == CellType.NUMERIC) {
-                            valuesToBeUpdate.put(Constants.EMPLOYEE_CODE, NumberToTextConverter.toText(nextRow.getCell(5).getNumericCellValue()).trim());
-                        } else if (nextRow.getCell(5).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.EMPLOYEE_CODE, nextRow.getCell(5).getStringCellValue().trim());
+                    if (nextRow.getCell(4) != null && nextRow.getCell(4).getCellType() != CellType.BLANK) {
+                        if (nextRow.getCell(4).getCellType() == CellType.STRING) {
+                            valuesToBeUpdate.put(Constants.DESIGNATION, nextRow.getCell(4).getStringCellValue().trim());
                         } else {
-                            errList.add("Invalid value for Employee ID type. Expecting string/number format");
+                            errList.add("Invalid value for Designation type. Expecting string format");
                         }
-
                     }
-                    if (nextRow.getCell(6) != null && nextRow.getCell(6).getCellType() != CellType.BLANK) {
-                        if (nextRow.getCell(6).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.GENDER, nextRow.getCell(6).getStringCellValue().trim());
+                    if (nextRow.getCell(5) != null && nextRow.getCell(5).getCellType() != CellType.BLANK) {
+                        if (nextRow.getCell(5).getCellType() == CellType.STRING) {
+                            valuesToBeUpdate.put(Constants.GENDER, nextRow.getCell(5).getStringCellValue().trim());
                         } else {
                             errList.add("Invalid value for Gender type. Expecting string format");
                         }
                     }
+                    if (nextRow.getCell(6) != null && nextRow.getCell(6).getCellType() != CellType.BLANK) {
+                        if (nextRow.getCell(6).getCellType() == CellType.STRING) {
+                            valuesToBeUpdate.put(Constants.CATEGORY, nextRow.getCell(6).getStringCellValue().trim());
+                        } else {
+                            errList.add("Invalid value for Category type. Expecting string format");
+                        }
+                    }
                     if (nextRow.getCell(7) != null && nextRow.getCell(7).getCellType() != CellType.BLANK) {
                         if (nextRow.getCell(7).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.DOB, nextRow.getCell(7).getStringCellValue().trim());
+                            if (ValidationUtil.validateDate(nextRow.getCell(7).getStringCellValue().trim())) {
+                                valuesToBeUpdate.put(Constants.DOB, nextRow.getCell(7).getStringCellValue().trim());
+                            } else {
+                                errList.add("Invalid format for Date of Birth type. Expecting in format dd-MM-yyyy");
+                            }
                         } else {
-                            errList.add("Invalid value for DOB type. Expecting string format");
+                            errList.add("Invalid value for Date of Birth type. Expecting string format");
                         }
                     }
                     if (nextRow.getCell(8) != null && nextRow.getCell(8).getCellType() != CellType.BLANK) {
                         if (nextRow.getCell(8).getCellType() == CellType.STRING) {
                             valuesToBeUpdate.put(Constants.DOMICILE_MEDIUM, nextRow.getCell(8).getStringCellValue().trim());
                         } else {
-                            errList.add("Invalid value for Mother tongue type. Expecting string format");
+                            errList.add("Invalid value for Mother Tongue type. Expecting string format");
                         }
                     }
                     if (nextRow.getCell(9) != null && nextRow.getCell(9).getCellType() != CellType.BLANK) {
-                        if (nextRow.getCell(9).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.CATEGORY, nextRow.getCell(9).getStringCellValue().trim());
+                        if (nextRow.getCell(9).getCellType() == CellType.NUMERIC) {
+                            valuesToBeUpdate.put(Constants.EMPLOYEE_CODE, NumberToTextConverter.toText(nextRow.getCell(9).getNumericCellValue()).trim());
+                        } else if (nextRow.getCell(9).getCellType() == CellType.STRING) {
+                            valuesToBeUpdate.put(Constants.EMPLOYEE_CODE, nextRow.getCell(9).getStringCellValue().trim());
                         } else {
-                            errList.add("Invalid value for category type. Expecting string format");
+                            errList.add("Invalid value for Employee ID type. Expecting string/number format");
                         }
+
                     }
                     if (nextRow.getCell(10) != null && nextRow.getCell(10).getCellType() != CellType.BLANK) {
                         if (nextRow.getCell(10).getCellType() == CellType.NUMERIC) {
@@ -300,7 +303,7 @@ public class UserBulkUploadService {
                         } else if (nextRow.getCell(10).getCellType() == CellType.STRING) {
                             valuesToBeUpdate.put(Constants.PINCODE, nextRow.getCell(10).getStringCellValue().trim());
                         } else {
-                            errList.add("Invalid value for pincode type. Expecting number/string format");
+                            errList.add("Invalid value for Office Pin Code type. Expecting number/string format");
                         }
                     }
                     if (nextRow.getCell(11) != null && nextRow.getCell(11).getCellType() != CellType.BLANK) {
@@ -322,10 +325,10 @@ public class UserBulkUploadService {
                         if (nextRow.getCell(12).getCellType() == CellType.STRING) {
                             valuesToBeUpdate.put(Constants.EXTERNAL_SYSTEM, nextRow.getCell(12).getStringCellValue().trim());
                             if (!ValidationUtil.validateExternalSystem((String)valuesToBeUpdate.get(Constants.EXTERNAL_SYSTEM))) {
-                                errList.add("Invalid External System : External System can contain only alphabets and can have a max length of 255");
+                                errList.add("Invalid External System Name : External System Name can contain only alphabets and can have a max length of 255");
                             }
                         } else {
-                            errList.add("Invalid value for External System type. Expecting string format");
+                            errList.add("Invalid value for External System Name type. Expecting string format");
                         }
                     }
                     if (nextRow.getCell(13) != null && nextRow.getCell(13).getCellType() != CellType.BLANK) {
@@ -429,11 +432,11 @@ public class UserBulkUploadService {
                         if(null != wfRequest){
                             wfRequest.setUpdateFieldValues(updatedValues);
                         }
-                        userProfileWfService.updateUserProfileForBulkUpload(wfRequest);
-                        WfStatusEntity wfStatusEntityFailed = wfStatusRepo.findByWfId(wfRequest.getWfId());
-                        if(null != wfStatusEntityFailed && Constants.REJECTED.equalsIgnoreCase(wfStatusEntityFailed.getCurrentStatus())){
-                            userRecordUpdate = false;
-                        }
+                    }
+                    userProfileWfService.updateUserProfileForBulkUpload(wfRequest);
+                    WfStatusEntity wfStatusEntityFailed = wfStatusRepo.findByWfId(wfRequest.getWfId());
+                    if(null != wfStatusEntityFailed && Constants.REJECTED.equalsIgnoreCase(wfStatusEntityFailed.getCurrentStatus())){
+                        userRecordUpdate = false;
                     }
                     if(userRecordUpdate){
                         noOfSuccessfulRecords++;

@@ -36,6 +36,7 @@ public class ValidationUtil {
 
 	public static Boolean validateDate(String dateString){
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
+		dateFormat.setLenient(false);
 		try {
 			Date todaysDate = new Date();
 			Calendar calendar = Calendar.getInstance();
