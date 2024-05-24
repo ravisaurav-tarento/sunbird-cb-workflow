@@ -499,7 +499,7 @@ public class NotificationServiceImpl {
 	}
 
 	public void sendMailToMDOForOrgChange(WfRequest wfRequest){
-		List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(wfRequest.getRootOrgId(), Collections.singletonList(Constants.MDO_ADMIN));
+		List<String> mdoAdminList = userProfileWfService.getMdoAdminAndPCDetails(wfRequest.getPreviousRootOrgId(), Collections.singletonList(Constants.MDO_ADMIN));
 		Map<String, Object> params = new HashMap<>();
 		NotificationRequest request = new NotificationRequest();
 		request.setDeliveryType("message");

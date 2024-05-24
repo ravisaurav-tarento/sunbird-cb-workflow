@@ -202,8 +202,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 				if (!CollectionUtils.isEmpty(userDetails)) {
 					rootOrgId = (String) userDetails.get(0).get(Constants.USER_ROOT_ORG_ID);
 				}
-				wfRequest.setRootOrgId(rootOrgId);
-
+				wfRequest.setPreviousRootOrgId(rootOrgId);
 			}
 			producer.push(configuration.getWorkFlowNotificationTopic(), wfRequest);
 			producer.push(configuration.getWorkflowApplicationTopic(), wfRequest);

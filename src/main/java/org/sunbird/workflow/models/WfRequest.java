@@ -32,6 +32,7 @@ public class WfRequest {
 	private String batchName;
 	private Date batchStartDate;
 	private boolean isNominatedByMdo;
+	private String previousRootOrgId;
 
 	public String getState() {
 		return state;
@@ -159,5 +160,13 @@ public class WfRequest {
 
 	public void setNominatedByMdo(boolean nominatedByMdo) {
 		isNominatedByMdo = nominatedByMdo;
+	}
+
+	public String getPreviousRootOrgId() {
+		return previousRootOrgId;
+	}
+
+	public void setPreviousRootOrgId(String previousRootOrgId) {
+		this.previousRootOrgId = previousRootOrgId;
 	}
 }
