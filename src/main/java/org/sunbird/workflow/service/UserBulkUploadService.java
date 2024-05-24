@@ -295,7 +295,10 @@ public class UserBulkUploadService {
                         } else {
                             errList.add("Invalid value for Employee ID type. Expecting string/number format");
                         }
-
+                        if (!StringUtils.isEmpty(valuesToBeUpdate.get(Constants.EMPLOYEE_CODE))) {
+                            if (!ValidationUtil.validateEmployeeId((String) valuesToBeUpdate.get(Constants.EMPLOYEE_CODE)))
+                                errList.add("Invalid Employee ID : Employee ID can contain alphanumeric characters or numeric character and have a max length of 30");
+                        }
                     }
                     if (nextRow.getCell(10) != null && nextRow.getCell(10).getCellType() != CellType.BLANK) {
                         if (nextRow.getCell(10).getCellType() == CellType.NUMERIC) {
