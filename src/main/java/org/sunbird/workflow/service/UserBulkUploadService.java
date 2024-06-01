@@ -25,6 +25,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.sunbird.workflow.config.Configuration;
 import org.sunbird.workflow.config.Constants;
+import org.sunbird.workflow.config.RedisCacheMgr;
 import org.sunbird.workflow.exception.ApplicationException;
 import org.sunbird.workflow.models.SBApiResponse;
 import org.sunbird.workflow.models.WfRequest;
@@ -33,6 +34,9 @@ import org.sunbird.workflow.postgres.repo.WfStatusRepo;
 import org.sunbird.workflow.service.impl.RequestServiceImpl;
 import org.sunbird.workflow.utils.CassandraOperation;
 import org.sunbird.workflow.utils.ValidationUtil;
+
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,10 +67,11 @@ public class UserBulkUploadService {
     @Autowired
     private ObjectMapper mapper;
 
-
-
     @Autowired
     StorageService storageService;
+
+    @Autowired
+    RedisCacheMgr redisCacheMgr;
 
     public void initiateUserBulkUploadProcess(String inputData) {
         logger.info("UserBulkUploadService:: initiateUserBulkUploadProcess: Started");
@@ -242,10 +247,15 @@ public class UserBulkUploadService {
                         }
                     }
                     if (nextRow.getCell(3) != null && nextRow.getCell(3).getCellType() != CellType.BLANK) {
+                        String groupValue = null;
                         if (nextRow.getCell(3).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.GROUP, nextRow.getCell(3).getStringCellValue().trim());
+                            groupValue = nextRow.getCell(3).getStringCellValue().trim();
+                            valuesToBeUpdate.put(Constants.GROUP, groupValue);
                         } else {
                             errList.add("Invalid value for Group type. Expecting string format");
+                        }
+                        if (!this.validateGroupValue(groupValue)) {
+                            errList.add("invalid value of Group Type, please choose a valid value from the default list");
                         }
                     }
                     if (nextRow.getCell(4) != null && nextRow.getCell(4).getCellType() != CellType.BLANK) {
@@ -255,6 +265,9 @@ public class UserBulkUploadService {
                             if (org.apache.commons.lang.StringUtils.isNotBlank(designation)) {
                                 if (!ValidationUtil.validateRegexPatternWithNoSpecialCharacter(designation)) {
                                     errList.add("Invalid Designation: Designation should be added from default list and cannot contain special character");
+                                }
+                                if(this.validateFieldValue("position", designation)){
+                                    errList.add("Invalid Value of Designation, please choose a valid value form the default list");
                                 }
                             }
                         } else {
@@ -310,9 +323,10 @@ public class UserBulkUploadService {
                     }
                     if (nextRow.getCell(8) != null && nextRow.getCell(8).getCellType() != CellType.BLANK) {
                         if (nextRow.getCell(8).getCellType() == CellType.STRING) {
-                            valuesToBeUpdate.put(Constants.DOMICILE_MEDIUM, nextRow.getCell(8).getStringCellValue().trim());
-                            if (!ValidationUtil.validateRegexPatternWithNoSpecialCharacter(nextRow.getCell(8).getStringCellValue().trim())) {
-                                errList.add("Invalid Mother Tongue: Mother Tongue should be added from default list and cannot contain special character");
+                            String language = nextRow.getCell(8).getStringCellValue().trim();
+                            valuesToBeUpdate.put(Constants.DOMICILE_MEDIUM, language);
+                            if (!ValidationUtil.validateRegexPatternWithNoSpecialCharacter(language) || this.validateFieldValue("languages", language)) {
+                                errList.add("Invalid Mother Tongue: Mother Tongue should be added from default list and/or cannot contain special character");
                             }
                         } else {
                             errList.add("Invalid value for Mother Tongue type. Expecting string format");
@@ -627,6 +641,35 @@ public class UserBulkUploadService {
     private boolean validateCategory(String category) {
         List<String> categoryValues = configuration.getBulkUploadCategoryValue();
         return categoryValues != null && categoryValues.contains(category);
+    }
+
+    private boolean validateGroupValue(String groupValue){
+        String groupValues = configuration.getGroupValues();
+        Set<String> groupValuesSet = Stream.of(groupValues.split(",")).collect(Collectors.toSet());
+        return groupValuesSet.contains(groupValue);
+    }
+
+    private boolean validateFieldValue(String fieldKey, String fieldValue){
+        String designationsAsString = redisCacheMgr.getCache(fieldKey);
+        Set<String> designationsSet;
+        if(!StringUtils.isEmpty(designationsAsString)){
+            designationsSet = Stream.of(designationsAsString.split(",")).collect(Collectors.toSet());
+        } else{
+            designationsSet = new HashSet<>();
+            Map<String,Object> propertiesMap = new HashMap<>();
+            propertiesMap.put(Constants.CONTEXT_TYPE, fieldKey);
+            List<Map<String, Object>> languagesList = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_MASTER_DATA, propertiesMap, Collections.singletonList(Constants.CONTEXT_NAME));
+            if(!CollectionUtils.isEmpty(languagesList)) {
+                for(Map<String, Object> languageMap : languagesList){
+                    designationsSet.add((String)languageMap.get("contextname"));
+                }
+            }
+            StringBuilder designationsToBeCached = new StringBuilder();
+            designationsSet.forEach(e -> designationsToBeCached.append(e).append(","));
+            designationsToBeCached.deleteCharAt(designationsToBeCached.length() - 1);
+            redisCacheMgr.putStringInCache(fieldKey, new String(designationsToBeCached), null);
+        }
+        return !designationsSet.contains(fieldValue);
     }
 
 }

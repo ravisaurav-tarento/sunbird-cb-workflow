@@ -221,6 +221,9 @@ public class Configuration {
     @Value("${user.bulk.upload.category.value}")
     private String bulkUploadCategoryValue;
 
+    @Value("${user.default.group.values}")
+    private String groupValues;
+
     public String getModificationRecordAllowActions() {
         return modificationRecordAllowActions;
     }
@@ -803,5 +806,13 @@ public class Configuration {
 
     public void setBulkUploadCategoryValue(String bulkUploadCategoryValue) {
         this.bulkUploadCategoryValue = bulkUploadCategoryValue;
+    }
+
+    public String getGroupValues() {
+        return groupValues;
+    }
+
+    public void setGroupValues(String groupValues) {
+        this.groupValues = groupValues;
     }
 }
