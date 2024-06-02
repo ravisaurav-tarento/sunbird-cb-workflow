@@ -1,5 +1,6 @@
 package org.sunbird.workflow.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,21 +17,10 @@ public class RedisCacheMgr {
     @Autowired
     private JedisPool jedisPool;
 
-    private RedisConfiguration redisConfiguration;
+    ObjectMapper objectMapper = new ObjectMapper();
 
     private final Logger logger = LoggerFactory.getLogger(RedisCacheMgr.class);
 
-    public void putStringInCache(String key, String value, Integer ttl) {
-        if(null == ttl)
-            ttl = cache_ttl;
-        try (Jedis jedis = jedisPool.getResource()) {
-            jedis.set(Constants.REDIS_COMMON_KEY + key, value);
-            jedis.expire(Constants.REDIS_COMMON_KEY + key, ttl);
-            logger.debug("Cache_key_value " + Constants.REDIS_COMMON_KEY + key + " is saved in redis");
-        } catch (Exception e) {
-            logger.error("An Error Occurred while saving in Redis", e);
-        }
-    }
 
     public String getCache(String key) {
         try (Jedis jedis = jedisPool.getResource()) {
@@ -38,6 +28,19 @@ public class RedisCacheMgr {
         } catch (Exception e) {
             logger.error("An Error Occurred while fetching value from Redis", e);
             return null;
+        }
+    }
+
+    public void putCache(String key, Object object, Integer ttl) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            if(null == ttl)
+                ttl = cache_ttl;
+            String data = objectMapper.writeValueAsString(object);
+            jedis.set(Constants.REDIS_COMMON_KEY + key, data);
+            jedis.expire(Constants.REDIS_COMMON_KEY + key, ttl);
+            logger.debug("Cache_key_value " + Constants.REDIS_COMMON_KEY + key + " is saved in redis");
+        } catch (Exception e) {
+            logger.error("An error occurred while saving data into Redis",e);
         }
     }
 }

@@ -649,11 +649,11 @@ public class UserBulkUploadService {
         return groupValuesSet.contains(groupValue);
     }
 
-    private boolean validateFieldValue(String fieldKey, String fieldValue){
+    private boolean validateFieldValue(String fieldKey, String fieldValue) throws IOException {
         String designationsAsString = redisCacheMgr.getCache(fieldKey);
         Set<String> designationsSet;
         if(!StringUtils.isEmpty(designationsAsString)){
-            designationsSet = Stream.of(designationsAsString.split(",")).collect(Collectors.toSet());
+            designationsSet = objectMapper.readValue(designationsAsString, new TypeReference<HashSet<String>>() {});
         } else{
             designationsSet = new HashSet<>();
             Map<String,Object> propertiesMap = new HashMap<>();
@@ -664,10 +664,7 @@ public class UserBulkUploadService {
                     designationsSet.add((String)languageMap.get("contextname"));
                 }
             }
-            StringBuilder designationsToBeCached = new StringBuilder();
-            designationsSet.forEach(e -> designationsToBeCached.append(e).append(","));
-            designationsToBeCached.deleteCharAt(designationsToBeCached.length() - 1);
-            redisCacheMgr.putStringInCache(fieldKey, new String(designationsToBeCached), null);
+            redisCacheMgr.putCache(fieldKey, designationsSet, null);
         }
         return !designationsSet.contains(fieldValue);
     }

@@ -1028,7 +1028,6 @@ public class WorkflowServiceImpl implements Workflowservice {
 			uploadedFileDetails.put(Constants.DATE_CREATED_ON, new Timestamp(System.currentTimeMillis()));
 			uploadedFileDetails.put(Constants.STATUS, Constants.INITIATED_CAPITAL);
 			uploadedFileDetails.put(Constants.COMMENT, "");
-			uploadedFileDetails.put(Constants.CREATED_BY, userId);
 
 			Response insertionResponse = cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_USER_BULK_UPDATE, uploadedFileDetails);
 			if (!Constants.SUCCESS.equalsIgnoreCase((String)insertionResponse.get("STATUS"))) {
