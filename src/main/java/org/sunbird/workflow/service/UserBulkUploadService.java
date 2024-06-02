@@ -644,9 +644,8 @@ public class UserBulkUploadService {
     }
 
     private boolean validateGroupValue(String groupValue){
-        String groupValues = configuration.getGroupValues();
-        Set<String> groupValuesSet = Stream.of(groupValues.split(",")).collect(Collectors.toSet());
-        return groupValuesSet.contains(groupValue);
+        List<String> groupValuesList = configuration.getGroupValues();
+        return groupValuesList.contains(groupValue);
     }
 
     private boolean validateFieldValue(String fieldKey, String fieldValue) throws IOException {

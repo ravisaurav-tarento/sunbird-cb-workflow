@@ -808,8 +808,8 @@ public class Configuration {
         this.bulkUploadCategoryValue = bulkUploadCategoryValue;
     }
 
-    public String getGroupValues() {
-        return groupValues;
+    public List<String> getGroupValues() {
+        return Arrays.asList(this.groupValues.split(",", -1));
     }
 
     public void setGroupValues(String groupValues) {
