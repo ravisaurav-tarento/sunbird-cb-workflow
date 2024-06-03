@@ -323,7 +323,7 @@ public class UserBulkUploadService {
                             String language = nextRow.getCell(8).getStringCellValue().trim();
                             valuesToBeUpdate.put(Constants.DOMICILE_MEDIUM, language);
                             if (!ValidationUtil.validateRegexPatternWithNoSpecialCharacter(language) || this.validateFieldValue("languages", language)) {
-                                errList.add("Invalid Mother Tongue: Mother Tongue should be added from default list and/or cannot contain special character");
+                                errList.add("Invalid Mother Tongue: Mother Tongue should be added from default list and/or cannot contain special character(s)");
                             }
                         } else {
                             errList.add("Invalid value for Mother Tongue type. Expecting string format");
