@@ -35,9 +35,6 @@ import org.sunbird.workflow.service.impl.RequestServiceImpl;
 import org.sunbird.workflow.utils.CassandraOperation;
 import org.sunbird.workflow.utils.ValidationUtil;
 
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -649,12 +646,10 @@ public class UserBulkUploadService {
     }
 
     private boolean validateFieldValue(String fieldKey, String fieldValue) throws IOException {
-        String designationsAsString = redisCacheMgr.getCache(fieldKey);
-        Set<String> designationsSet;
-        if(!StringUtils.isEmpty(designationsAsString)){
-            designationsSet = objectMapper.readValue(designationsAsString, new TypeReference<HashSet<String>>() {});
+        if(redisCacheMgr.keyExists(fieldKey)){
+            return !redisCacheMgr.valueExists(fieldKey, fieldValue);
         } else{
-            designationsSet = new HashSet<>();
+            Set<String> designationsSet = new HashSet<>();
             Map<String,Object> propertiesMap = new HashMap<>();
             propertiesMap.put(Constants.CONTEXT_TYPE, fieldKey);
             List<Map<String, Object>> languagesList = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_MASTER_DATA, propertiesMap, Collections.singletonList(Constants.CONTEXT_NAME));
@@ -663,9 +658,9 @@ public class UserBulkUploadService {
                     designationsSet.add((String)languageMap.get("contextname"));
                 }
             }
-            redisCacheMgr.putCache(fieldKey, designationsSet, null);
+            redisCacheMgr.putCache(fieldKey, designationsSet.toArray(new String[0]), null);
+            return !designationsSet.contains(fieldValue);
         }
-        return !designationsSet.contains(fieldValue);
     }
 
 }
