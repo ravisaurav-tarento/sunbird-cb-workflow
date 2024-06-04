@@ -1,13 +1,18 @@
 package org.sunbird.workflow.service.impl;
 
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TimeZone;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.gson.Gson;
-
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.everit.json.schema.Schema;
 import org.everit.json.schema.ValidationException;
 import org.everit.json.schema.loader.SchemaLoader;
@@ -18,9 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.sunbird.workflow.config.Configuration;
 import org.sunbird.workflow.config.Constants;
@@ -31,7 +34,10 @@ import org.sunbird.workflow.postgres.repo.WfStatusRepo;
 import org.sunbird.workflow.service.UserProfileWfService;
 import org.sunbird.workflow.service.Workflowservice;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 
 @Service
 public class UserProfileWfServiceImpl implements UserProfileWfService {
@@ -174,65 +180,41 @@ public class UserProfileWfServiceImpl implements UserProfileWfService {
 			logger.error("Merge profile exception::{}", e);
 		}
 		List<Map<String, Object>> professionDetailsInfoList = (List<Map<String, Object>>)existingProfileDetail.get(Constants.PROFESSIONAL_DETAILS);
-		if(org.apache.commons.collections4.CollectionUtils.isNotEmpty(professionDetailsInfoList)) {
-			if (org.apache.commons.lang3.StringUtils
-					.isNotBlank((String) professionDetailsInfoList.get(0).get(Constants.GROUP)) &&
-					org.apache.commons.lang3.StringUtils
-							.isNotBlank((String) professionDetailsInfoList.get(0)
-									.get(Constants.DESIGNATION))) {
+		if(CollectionUtils.isNotEmpty(professionDetailsInfoList)) {
+			Map<String, Object> professionalDetailMap = professionDetailsInfoList.get(0);
+			String updatedGroup = null;
+			String updatedDesignation = null;
+			if (MapUtils.isNotEmpty(professionalDetailMap)) {
+				updatedGroup = (String) professionalDetailMap.get(Constants.GROUP);
+				updatedDesignation = (String) professionalDetailMap.get(Constants.DESIGNATION);
+			}
+			if (StringUtils.isNotEmpty(updatedGroup)) {
+				existingProfileDetail.put(Constants.PROFILE_GROUP_STATUS, Constants.VERIFIED);
+			} else {
+				existingProfileDetail.put(Constants.PROFILE_GROUP_STATUS, Constants.NOT_VERIFIED);
+			}
+
+			if (StringUtils.isNotEmpty(updatedDesignation)) {
+				existingProfileDetail.put(Constants.PROFILE_DESIGNATION_STATUS, Constants.VERIFIED);
+			} else {
+				existingProfileDetail.put(Constants.PROFILE_DESIGNATION_STATUS, Constants.NOT_VERIFIED);
+			}
+
+			if (StringUtils.isNotEmpty(updatedGroup) && StringUtils.isNotEmpty(updatedDesignation)) {
 				existingProfileDetail.put(Constants.PROFILE_STATUS, Constants.VERIFIED);
 			} else {
 				existingProfileDetail.put(Constants.PROFILE_STATUS, Constants.NOT_VERIFIED);
 			}
-		}
-		
-										
-		if (exitingProfileDetailCopy != null) {
-			boolean isGroupOrDesignationUpdated = false;
-			List<Map<String, Object>> existingProfessionalList = (List<Map<String, Object>>) exitingProfileDetailCopy
-					.get(Constants.PROFESSIONAL_DETAILS);
-			List<Map<String, Object>> updatedProfessionalList = (List<Map<String, Object>>) existingProfileDetail.get(Constants.PROFESSIONAL_DETAILS);
-			Map<String, Object> updatedProfMap = null;
-			String updatedGroup = null;
-			String updatedDesignation = null;
-			if (!CollectionUtils.isEmpty(updatedProfessionalList)) {
-				updatedProfMap = updatedProfessionalList.get(0);
-				if (MapUtils.isNotEmpty(updatedProfMap)) {
-					updatedGroup = (String) updatedProfMap.get(Constants.GROUP);
-					updatedDesignation = (String) updatedProfMap.get(Constants.DESIGNATION);
-					String existingGroup = null;
-					String existingDesignation = null;
-					if (!CollectionUtils.isEmpty(existingProfessionalList)) {
-						Map<String, Object> existingProfMap = existingProfessionalList.get(0);
-						existingGroup = (String) existingProfMap.get(Constants.GROUP);
-						existingDesignation = (String) existingProfMap.get(Constants.DESIGNATION);
-					}
-					if ((!StringUtils.isEmpty(updatedGroup) && !updatedGroup.equalsIgnoreCase(existingGroup)) || 
-						(!StringUtils.isEmpty(updatedDesignation) && !updatedDesignation.equalsIgnoreCase(existingDesignation))) {
-							isGroupOrDesignationUpdated = true;
-					}
-				}
+
+			SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH.mm.ss");
+			sdf.setTimeZone(TimeZone.getTimeZone("GMT+05:30"));
+			String timeStamp = sdf.format(new java.util.Date());
+			existingProfileDetail.put(Constants.PROFILE_STATUS_UPDATED_ON, timeStamp);
+			Map<String, Object> additionalProperties = (Map<String, Object>) existingProfileDetail.get(Constants.ADDITIONAL_PROPERTIES);
+			if (ObjectUtils.isEmpty(additionalProperties)) {
+				additionalProperties = new HashMap<>();
 			}
-			if (isGroupOrDesignationUpdated) {
-				if (!StringUtils.isEmpty(updatedGroup) && !StringUtils.isEmpty(updatedDesignation)) {
-					updatedProfMap.put(Constants.PROFILE_STATUS, Constants.VERIFIED);
-				} else {
-					updatedProfMap.put(Constants.PROFILE_STATUS, Constants.NOT_VERIFIED);
-				}
-				SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy HH.mm.ss");
-				sdf.setTimeZone(TimeZone.getTimeZone("GMT+05:30"));
-				String timeStamp = sdf.format(new java.util.Date());
-				existingProfileDetail.put(Constants.PROFILE_STATUS_UPDATED_ON, timeStamp);
-				Map<String, Object> additionalProperties = (Map<String, Object>) existingProfileDetail
-						.get(Constants.ADDITIONAL_PROPERTIES);
-				if (ObjectUtils.isEmpty(additionalProperties)) {
-					additionalProperties = new HashMap<>();
-				}
-				additionalProperties.put(Constants.PROFILE_STATUS_UPDATED_MSG_VIEWED, false);
-				existingProfileDetail.put(Constants.ADDITIONAL_PROPERTIES, additionalProperties);
-			}
-		} else {
-			logger.error("Failed to copy existing profileDetails object.");
+			additionalProperties.put(Constants.PROFILE_STATUS_UPDATED_MSG_VIEWED, false);
 		}
 
 		return existingProfileDetail;
@@ -313,18 +295,18 @@ public class UserProfileWfServiceImpl implements UserProfileWfService {
 					for (Map<String, Object> content : contents) {
 						HashMap<String, Object> profileDetails = (HashMap<String, Object>) content
 								.get(Constants.PROFILE_DETAILS);
-						if (!CollectionUtils.isEmpty(profileDetails)) {
+						if (MapUtils.isNotEmpty(profileDetails)) {
 							HashMap<String, Object> personalDetails = (HashMap<String, Object>) profileDetails
 									.get(Constants.PERSONAL_DETAILS);
 							Map<String, Object> record = new HashMap<>();
-							if (!CollectionUtils.isEmpty(personalDetails)) {
+							if (MapUtils.isNotEmpty(personalDetails)) {
 								record.put(Constants.UUID, content.get(Constants.USER_ID));
 								record.put(Constants.FIRST_NAME, personalDetails.get(Constants.FIRSTNAME));
 								record.put(Constants.EMAIL, personalDetails.get(Constants.PRIMARY_EMAIL));
 								record.put(Constants.ROOT_ORG_ID,content.get(Constants.ROOT_ORG_ID));
 							}
 							Map<String, Object> additionalProperties = (Map<String, Object>) profileDetails.get(Constants.ADDITIONAL_PROPERTIES);
-							if (!CollectionUtils.isEmpty(additionalProperties)) {
+							if (MapUtils.isNotEmpty(additionalProperties)) {
 								record.put(Constants.TAG, additionalProperties.get(Constants.TAG));
 							}
 							userResult.put((String) content.get(Constants.USER_ID), record);
@@ -500,10 +482,10 @@ public class UserProfileWfServiceImpl implements UserProfileWfService {
 					for (Map<String, Object> content : contents) {
 						HashMap<String, Object> profileDetails = (HashMap<String, Object>) content
 								.get(Constants.PROFILE_DETAILS);
-						if (!CollectionUtils.isEmpty(profileDetails)) {
+						if (MapUtils.isNotEmpty(profileDetails)) {
 							HashMap<String, Object> personalDetails = (HashMap<String, Object>) profileDetails
 									.get(Constants.PERSONAL_DETAILS);
-							if (!CollectionUtils.isEmpty(personalDetails)) {
+							if (MapUtils.isNotEmpty(personalDetails)) {
 								mdoResults.add((String) personalDetails.get(Constants.PRIMARY_EMAIL));
 							}
 						}
