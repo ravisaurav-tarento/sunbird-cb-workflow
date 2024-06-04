@@ -346,10 +346,10 @@ public class UserBulkUploadService {
                         String pinCode = "";
                         if (nextRow.getCell(10).getCellType() == CellType.NUMERIC) {
                             pinCode = NumberToTextConverter.toText(nextRow.getCell(10).getNumericCellValue());
-                            valuesToBeUpdate.put(Constants.PINCODE, pinCode);
+                            valuesToBeUpdate.put(Constants.PIN_CODE, pinCode);
                         } else if (nextRow.getCell(10).getCellType() == CellType.STRING) {
                             pinCode = nextRow.getCell(10).getStringCellValue().trim();
-                            valuesToBeUpdate.put(Constants.PINCODE, pinCode);
+                            valuesToBeUpdate.put(Constants.PIN_CODE, pinCode);
                         } else {
                             errList.add("Invalid value for Office Pin Code type. Expecting number/string format");
                         }
@@ -422,18 +422,24 @@ public class UserBulkUploadService {
                             for(Map.Entry<String, String> entry : toValue.entrySet()){
                                 if(valuesToBeUpdate.containsKey(entry.getKey())){
                                     WfRequest wfRequest = this.getWFRequest(wfStatusEntity, null);
-                                    wfStatusEntity.setCurrentStatus(Constants.APPROVED);
+                                    if (entry.getValue().equalsIgnoreCase((String) valuesToBeUpdate.get(entry.getKey()))){
+                                        wfStatusEntity.setCurrentStatus(Constants.APPROVED);
+                                    } else {
+                                        wfStatusEntity.setCurrentStatus(Constants.REJECTED);
+                                    }
                                     wfStatusEntity.setInWorkflow(false);
                                     wfStatusRepo.save(wfStatusEntity);
-                                    userProfileWfService.updateUserProfile(wfRequest);
-                                    WfStatusEntity wfStatusEntityFailed = wfStatusRepo.findByWfId(wfRequest.getWfId());
-                                    if(Constants.REJECTED.equalsIgnoreCase(wfStatusEntityFailed.getCurrentStatus())){
-                                        userRecordUpdate = false;
-                                        this.setErrorDetails(str, Collections.singletonList(Constants.UPDATE_FAILED), statusCell, errorDetails);
-                                    } else{
-                                        statusCell.setCellValue(Constants.SUCCESS_UPPERCASE);
+                                    if (Constants.APPROVED.equalsIgnoreCase(wfStatusEntity.getCurrentStatus())) {
+                                        userProfileWfService.updateUserProfile(wfRequest);
+                                        WfStatusEntity wfStatusEntityFailed = wfStatusRepo.findByWfId(wfRequest.getWfId());
+                                        if(Constants.REJECTED.equalsIgnoreCase(wfStatusEntityFailed.getCurrentStatus())){
+                                            userRecordUpdate = false;
+                                            this.setErrorDetails(str, Collections.singletonList(Constants.UPDATE_FAILED), statusCell, errorDetails);
+                                        } else{
+                                            statusCell.setCellValue(Constants.SUCCESS_UPPERCASE);
+                                        }
+                                        valuesToBeUpdate.remove(entry.getKey());
                                     }
-                                    valuesToBeUpdate.remove(entry.getKey());
                                 }
                             }
                         }
@@ -449,7 +455,6 @@ public class UserBulkUploadService {
 
                     Set<String> employmentDetailsKey = new HashSet<>();
                     employmentDetailsKey.add(Constants.EMPLOYEE_CODE);
-                    employmentDetailsKey.add(Constants.PINCODE);
 
                     Set<String> professionalDetailsKey = new HashSet<>();
                     professionalDetailsKey.add(Constants.GROUP);
@@ -461,6 +466,7 @@ public class UserBulkUploadService {
                     personalDetailsKey.add(Constants.DOMICILE_MEDIUM);
                     personalDetailsKey.add(Constants.CATEGORY);
                     personalDetailsKey.add(Constants.GENDER);
+                    personalDetailsKey.add(Constants.PIN_CODE);
 
                     WfRequest wfRequest = this.getWFRequest(valuesToBeUpdate, userId);
                     List<HashMap<String, Object>> updatedValues = new ArrayList<>();

@@ -317,7 +317,7 @@ public class Constants {
 	public static final String TRANSFER_SUBJECT_LINE = "Transfer Notification: #username";
 	public static final String LAST_UPDATED_ON = "lastUpdatedOn";
 	public static final String DOMICILE_MEDIUM = "domicileMedium";
-	public static final String PINCODE = "pinCode";
+	public static final String PIN_CODE = "pincode";
 	public static final String EMPLOYEE_CODE = "employeeCode";
 	public static final String GENDER = "gender";
 	public static final String DOB = "dob";
