@@ -455,6 +455,7 @@ public class UserBulkUploadService {
 
                     Set<String> employmentDetailsKey = new HashSet<>();
                     employmentDetailsKey.add(Constants.EMPLOYEE_CODE);
+                    employmentDetailsKey.add(Constants.PIN_CODE);
 
                     Set<String> professionalDetailsKey = new HashSet<>();
                     professionalDetailsKey.add(Constants.GROUP);
@@ -466,7 +467,6 @@ public class UserBulkUploadService {
                     personalDetailsKey.add(Constants.DOMICILE_MEDIUM);
                     personalDetailsKey.add(Constants.CATEGORY);
                     personalDetailsKey.add(Constants.GENDER);
-                    personalDetailsKey.add(Constants.PIN_CODE);
 
                     WfRequest wfRequest = this.getWFRequest(valuesToBeUpdate, userId);
                     List<HashMap<String, Object>> updatedValues = new ArrayList<>();
