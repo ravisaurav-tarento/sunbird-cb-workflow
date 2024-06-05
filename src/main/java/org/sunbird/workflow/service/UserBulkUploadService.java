@@ -264,7 +264,7 @@ public class UserBulkUploadService {
                                     errList.add("Invalid Designation: Designation should be added from default list and cannot contain special character");
                                 }
                                 if(this.validateFieldValue("position", designation)){
-                                    errList.add("Invalid Value of Designation, please choose a valid value form the default list");
+                                    errList.add("Invalid Value of Designation, please choose a valid value from the default list");
                                 }
                             }
                         } else {
