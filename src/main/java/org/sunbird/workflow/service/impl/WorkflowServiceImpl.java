@@ -1173,9 +1173,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 							updateFieldKey = fieldKeyOpt.get().getKey();
 						}
 						if (Constants.NAME.equalsIgnoreCase(updateFieldKey)) {
-							userData.put(Constants.IS_ORG_TRANSFER_REQUEST, Boolean.TRUE);
-						} else {
-							userData.put(Constants.IS_ORG_TRANSFER_REQUEST, Boolean.FALSE);
+							wfStatusEntity.setOrgTansferRequest(true);
 						}
 					}
 				}

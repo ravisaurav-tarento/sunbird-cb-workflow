@@ -2,6 +2,8 @@ package org.sunbird.workflow.consumer;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class NotificationConsumer {
@@ -39,10 +42,23 @@ public class NotificationConsumer {
 
 	@KafkaListener(groupId = "workflowNotificationTopic-consumer", topics = "${kafka.topics.workflow.notification}")
 	public void processMessage(ConsumerRecord<String, String> data) {
+		try {
+            if (StringUtils.isNoneBlank(data.value())) {
+                CompletableFuture.runAsync(() -> {
+                    processNotificationRequest(data.value());
+                });
+            } else {
+                logger.error("Error in Notification Consumer: Invalid Kafka Msg");
+            }
+        } catch (Exception e) {
+            logger.error(String.format("Error in Notification Consumer: Error Msg :%s", e.getMessage()), e);
+        }
+	}
+
+	private void processNotificationRequest(String strData) {
 		WfRequest wfRequest = null;
 		try {
-			String message = String.valueOf(data.value());
-			wfRequest = mapper.readValue(message, WfRequest.class);
+			wfRequest = mapper.readValue(strData, WfRequest.class);
 			logger.info("Recevied data in notification consumer : {}", mapper.writeValueAsString(wfRequest));
 			switch (wfRequest.getServiceName()) {
 				case Constants.PROFILE_SERVICE_NAME:

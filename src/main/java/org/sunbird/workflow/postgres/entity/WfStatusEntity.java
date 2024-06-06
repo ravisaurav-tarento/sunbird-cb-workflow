@@ -58,6 +58,9 @@ public class WfStatusEntity {
 	@Column(name = "additional_properties")
 	private String additionalProperties;
 
+	@Transient
+	private boolean isOrgTansferRequest = false;
+
 	public String getModificationHistory() {
 		return modificationHistory;
 	}
@@ -184,5 +187,13 @@ public class WfStatusEntity {
 
 	public void setAdditionalProperties(String additionalProperties) {
 		this.additionalProperties = additionalProperties;
+	}
+
+	public boolean isOrgTansferRequest() {
+		return isOrgTansferRequest;
+	}
+
+	public void setOrgTansferRequest(boolean isOrgTansferRequest) {
+		this.isOrgTansferRequest = isOrgTansferRequest;
 	}
 }
