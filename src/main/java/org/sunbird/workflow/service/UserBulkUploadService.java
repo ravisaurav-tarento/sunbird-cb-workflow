@@ -651,17 +651,18 @@ public class UserBulkUploadService {
         return groupValuesList.contains(groupValue);
     }
 
-    private boolean validateFieldValue(String fieldKey, String fieldValue) throws IOException {
+    private boolean validateFieldValue(String fieldKey, String fieldValue) {
         if(redisCacheMgr.keyExists(fieldKey)){
             return !redisCacheMgr.valueExists(fieldKey, fieldValue);
         } else{
             Set<String> designationsSet = new HashSet<>();
             Map<String,Object> propertiesMap = new HashMap<>();
             propertiesMap.put(Constants.CONTEXT_TYPE, fieldKey);
-            List<Map<String, Object>> languagesList = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_MASTER_DATA, propertiesMap, Collections.singletonList(Constants.CONTEXT_NAME));
-            if(!CollectionUtils.isEmpty(languagesList)) {
-                for(Map<String, Object> languageMap : languagesList){
-                    designationsSet.add((String)languageMap.get("contextname"));
+            List<Map<String, Object>> fieldValueList = cassandraOperation.getRecordsByProperties(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_MASTER_DATA, propertiesMap, Collections.singletonList(Constants.CONTEXT_NAME));
+            if(!CollectionUtils.isEmpty(fieldValueList)) {
+                String columnName = fieldValueList.get(0).get("contextname") != null ? "contextname" : "contextName";
+                for(Map<String, Object> languageMap : fieldValueList){
+                    designationsSet.add((String)languageMap.get(columnName));
                 }
             }
             redisCacheMgr.putCache(fieldKey, designationsSet.toArray(new String[0]), null);
