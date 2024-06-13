@@ -336,5 +336,6 @@ public class Constants {
 	public static final String PROFILE_GROUP_STATUS = "profileGroupStatus";
 	public static final String PROFILE_DESIGNATION_STATUS = "profileDesignationStatus";
 	public static final String PINCODE = "pincode";
+	public static final String FIRST_NAME_CAMEL_CASE = "firstName";
 
 }

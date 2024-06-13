@@ -432,6 +432,16 @@ public class UserProfileWfServiceImpl implements UserProfileWfService {
 	private Map<String, Object> getUpdateRequest(WfRequest wfRequest, Map<String, Object> updateRequest) {
 		Map<String, Object> requestObject = new HashMap<>();
 		Map<String, Object> requestWrapper = new HashMap<>();
+		List<HashMap<String, Object>> valuesToBeUpdate = wfRequest.getUpdateFieldValues();
+		for (Map<String, Object> valueToUpdate : valuesToBeUpdate) {
+			if(valueToUpdate.containsKey(Constants.TO_VALUE)) {
+				Map<String, Object> toValue = (Map<String, Object>) valueToUpdate.get(Constants.TO_VALUE);
+				String keyToUpdate = toValue.keySet().stream().findFirst().get();
+				if(Constants.FIRSTNAME.equalsIgnoreCase(keyToUpdate)) {
+					requestWrapper.put(Constants.FIRST_NAME_CAMEL_CASE, toValue.get(keyToUpdate));
+				}
+			}
+		}
 		requestWrapper.put(Constants.USER_ID, wfRequest.getApplicationId());
 		requestWrapper.put(Constants.PROFILE_DETAILS, updateRequest);
 		requestObject.put(Constants.REQUEST, requestWrapper);
