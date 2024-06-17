@@ -14,6 +14,11 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
@@ -1185,5 +1190,90 @@ public class WorkflowServiceImpl implements Workflowservice {
 			response.put(Constants.MESSAGE, "Exception occurred while fetching requested fields for approval");
 			response.put(Constants.STATUS, Constants.FAILED);
 		}
+	}
+
+	@Override
+	public ResponseEntity<InputStreamResource> downloadPendingRequestFile(String userAuthToken) {
+		try {
+			Workbook pendingRequestWorkBook = this.getBlankWorkseet();
+			String mdoUserId = accessTokenValidator.fetchUserIdFromAccessToken(userAuthToken);
+			String departmentName = ""; //User Id is used to get departmentName from userSearch
+
+			List<WfStatusEntity> pendingRequestsEntityList = wfStatusRepo.getListOfDistinctApplicationUsingDept(Constants.PROFILE_SERVICE_NAME, Constants.SEND_FOR_APPROVAL, departmentName);
+			List<Map<String, Object>> allPendingRequestList = new ArrayList<>();
+			for (WfStatusEntity wfStatusEntity : pendingRequestsEntityList) {
+				ObjectMapper objectMapper = new ObjectMapper();
+
+				List<Map<String, Object>> valuesToBeUpdate = objectMapper.readValue(wfStatusEntity.getUpdateFieldValues(), new TypeReference<List<Map<String, Object>>>() {
+				});
+				for(Map<String, Object> valueToUpdate : valuesToBeUpdate){
+					Map<String, Object> pendingRequestMap = new HashMap<>();
+					if(valueToUpdate.containsKey(Constants.TO_VALUE)){
+						Map<String, Object> updateKeyValue = (Map<String, Object>) valueToUpdate.get(Constants.TO_VALUE);
+						String keyToUpdate = updateKeyValue.keySet().stream().findFirst().get();
+						if(Constants.DESIGNATION.equalsIgnoreCase(keyToUpdate) || Constants.GROUP.equalsIgnoreCase(keyToUpdate)){
+							pendingRequestMap.put(wfStatusEntity.getUserId() ,valueToUpdate);
+							allPendingRequestList.add(pendingRequestMap);
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.error("An error occurred while downloading file with pending requests", e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+
+		return null;
+	}
+
+	private Workbook getBlankWorkseet() {
+		Workbook pendingRequestWorkBook = new XSSFWorkbook();
+
+		Sheet pendingRequestSheet = pendingRequestWorkBook.createSheet("PendingUserRequest");
+		Row row = pendingRequestSheet.createRow(0);
+
+		Cell cell0 = row.createCell(0);
+		cell0.setCellValue("Full Name");
+
+		Cell cell1 = row.createCell(1);
+		cell1.setCellValue("Email");
+
+		Cell cell2 = row.createCell(2);
+		cell2.setCellValue("Mobile Number");
+
+		Cell cell3 = row.createCell(3);
+		cell3.setCellValue("Group");
+
+		Cell cell4 = row.createCell(4);
+		cell4.setCellValue("Designation");
+
+		Cell cell5 = row.createCell(5);
+		cell5.setCellValue("Gender");
+
+		Cell cell6 = row.createCell(6);
+		cell6.setCellValue("Category");
+
+		Cell cell7 = row.createCell(7);
+		cell7.setCellValue("Date of Birth (dd-mm-yyy)");
+
+		Cell cell8 = row.createCell(8);
+		cell8.setCellValue("Mother Tongue");
+
+		Cell cell9 = row.createCell(9);
+		cell9.setCellValue("Employee ID");
+
+		Cell cell10 = row.createCell(10);
+		cell10.setCellValue("Office Pin Code");
+
+		Cell cell11 = row.createCell(11);
+		cell11.setCellValue("External System ID");
+
+		Cell cell12 = row.createCell(12);
+		cell12.setCellValue("External System Name");
+
+		Cell cell13 = row.createCell(13);
+		cell13.setCellValue("Tags");
+
+		return pendingRequestWorkBook;
 	}
 }
