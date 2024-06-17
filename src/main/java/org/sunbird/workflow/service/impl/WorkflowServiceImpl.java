@@ -1186,4 +1186,63 @@ public class WorkflowServiceImpl implements Workflowservice {
 			response.put(Constants.STATUS, Constants.FAILED);
 		}
 	}
+
+	public SBApiResponse workflowBulkUpdateTransitionV1(String userAuthToken, MultipartFile mFile) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_USER_BULK_UPDATE);
+		try {
+			String userId = accessTokenValidator.fetchUserIdFromAccessToken(userAuthToken);
+			if (StringUtils.isEmpty(userId)) {
+				setErrorData(response, "Invalid User Token");
+				response.setResponseCode(HttpStatus.BAD_REQUEST);
+				log.error("Failed to process bulk update. Error: Invalid user token");
+				return response;
+			}
+			Map<String, Object> propertyMap = new HashMap<>();
+			propertyMap.put(Constants.ID, userId);
+			List<Map<String, Object>> userDetails = cassandraOperation.getRecordsByProperties(
+					Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap, Arrays.asList(Constants.ROOT_ORG_ID));
+
+			if (userDetails.isEmpty()) {
+				setErrorData(response, String.format("Failed to upload file. Error: User not found for Id: %s", userId));
+				log.error("Record not found in :" + Constants.USER_TABLE + Constants.DB_TABLE_NAME);
+				return response;
+			}
+
+			String rootOrgId = (String) userDetails.get(0).get(Constants.USER_ROOT_ORG_ID);
+
+			SBApiResponse uploadResponse = storageService.uploadFile(mFile, configuration.getUserBulkUpdateFolderName(), configuration.getWorkflowCloudContainerName());
+			if (!HttpStatus.OK.equals(uploadResponse.getResponseCode())) {
+				setErrorData(response, String.format("Failed to upload file. Error: %s",
+						(String) uploadResponse.getParams().getErrmsg()));
+				log.error("Failed to upload the given file.");
+				return response;
+			}
+
+			Map<String, Object> uploadedFileDetails = new HashMap<>();
+			uploadedFileDetails.put(Constants.ROOT_ORG_ID, rootOrgId);
+			uploadedFileDetails.put(Constants.IDENTIFIER, UUID.randomUUID().toString());
+			uploadedFileDetails.put(Constants.FILE_NAME, uploadResponse.getResult().get(Constants.NAME));
+			uploadedFileDetails.put(Constants.FILE_PATH, uploadResponse.getResult().get(Constants.URL));
+			uploadedFileDetails.put(Constants.CREATED_BY, userId);
+			uploadedFileDetails.put(Constants.DATE_CREATED_ON, new Timestamp(System.currentTimeMillis()));
+			uploadedFileDetails.put(Constants.STATUS, Constants.INITIATED_CAPITAL);
+			uploadedFileDetails.put(Constants.COMMENT, "");
+
+			Response insertionResponse = cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_USER_BULK_UPDATE, uploadedFileDetails);
+			if (!Constants.SUCCESS.equalsIgnoreCase((String)insertionResponse.get("STATUS"))) {
+				setErrorData(uploadResponse, "Failed to insert the upload file details.");
+				log.error("Failed to update database with user bulk upload file details.");
+				return response;
+			}
+			kafkaProducer.push(configuration.getUserBulkUpdateTopic(), uploadedFileDetails);
+			response.getParams().setStatus(Constants.SUCCESSFUL);
+			response.setResponseCode(HttpStatus.OK);
+			response.getResult().putAll(uploadedFileDetails);
+		} catch(Exception e){
+			log.error("Failed to process bulk upload request. Exception: ", e);
+			setErrorData(response,
+					String.format("Failed to process user bulk upload request. Error: ", e.getMessage()));
+		}
+		return response;
+	}
 }
