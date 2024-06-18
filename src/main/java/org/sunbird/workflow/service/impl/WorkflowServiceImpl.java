@@ -1,8 +1,6 @@
 package org.sunbird.workflow.service.impl;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,6 +10,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.collections.MapUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.poi.ss.usermodel.Cell;
@@ -1193,38 +1192,63 @@ public class WorkflowServiceImpl implements Workflowservice {
 	}
 
 	@Override
-	public ResponseEntity<InputStreamResource> downloadPendingRequestFile(String userAuthToken) {
+	public ResponseEntity<?> downloadPendingRequestFile(String userAuthToken) {
+		ResponseEntity<?> responseEntity;
 		try {
+			Set<String> userIdSet = new HashSet<>();
 			Workbook pendingRequestWorkBook = this.getBlankWorkseet();
 			String mdoUserId = accessTokenValidator.fetchUserIdFromAccessToken(userAuthToken);
-			String departmentName = ""; //User Id is used to get departmentName from userSearch
-
+			userIdSet.add(mdoUserId);
+			Map<String, Object> mdoDetails = this.getUserSearchDetails(userIdSet,true, null);
+			Map<String, Object> mdoInfo = (Map<String, Object>) mdoDetails.get(mdoUserId);
+			String departmentName = (String) mdoInfo.get(Constants.ROOT_ORG_NAME);
+			String rootOrgId = (String) mdoInfo.get(Constants.ROOT_ORG_ID);
+			Map<String, Object> allPendingRequest = new HashMap<>();
 			List<WfStatusEntity> pendingRequestsEntityList = wfStatusRepo.getListOfDistinctApplicationUsingDept(Constants.PROFILE_SERVICE_NAME, Constants.SEND_FOR_APPROVAL, departmentName);
-			List<Map<String, Object>> allPendingRequestList = new ArrayList<>();
+			if(CollectionUtils.isEmpty(pendingRequestsEntityList)) {
+				return ResponseEntity.status(HttpStatus.OK).body("There are no approval requests pending for approval with the MDO");
+			}
+			userIdSet.clear();
 			for (WfStatusEntity wfStatusEntity : pendingRequestsEntityList) {
+				userIdSet.add(wfStatusEntity.getUserId());
 				ObjectMapper objectMapper = new ObjectMapper();
-
 				List<Map<String, Object>> valuesToBeUpdate = objectMapper.readValue(wfStatusEntity.getUpdateFieldValues(), new TypeReference<List<Map<String, Object>>>() {
 				});
+				List<Map<String, Object>> pendingRequestList;
 				for(Map<String, Object> valueToUpdate : valuesToBeUpdate){
-					Map<String, Object> pendingRequestMap = new HashMap<>();
 					if(valueToUpdate.containsKey(Constants.TO_VALUE)){
 						Map<String, Object> updateKeyValue = (Map<String, Object>) valueToUpdate.get(Constants.TO_VALUE);
 						String keyToUpdate = updateKeyValue.keySet().stream().findFirst().get();
 						if(Constants.DESIGNATION.equalsIgnoreCase(keyToUpdate) || Constants.GROUP.equalsIgnoreCase(keyToUpdate)){
-							pendingRequestMap.put(wfStatusEntity.getUserId() ,valueToUpdate);
-							allPendingRequestList.add(pendingRequestMap);
+							if(allPendingRequest.containsKey(wfStatusEntity.getUserId())) {
+								pendingRequestList = (List<Map<String, Object>>) allPendingRequest.get(wfStatusEntity.getUserId());
+								pendingRequestList.add(updateKeyValue);
+								allPendingRequest.put(wfStatusEntity.getUserId(), pendingRequestList);
+							} else {
+								pendingRequestList = new ArrayList<>();
+								pendingRequestList.add(updateKeyValue);
+								allPendingRequest.put(wfStatusEntity.getUserId(), pendingRequestList);
+							}
 						}
 					}
 				}
 			}
+			Map<String, Object> allUserDetails = this.getUserSearchDetails(userIdSet,false, rootOrgId);
+			if(MapUtils.isNotEmpty(allUserDetails)){
+				this.populateSheetWithPendingRequests(allPendingRequest, allUserDetails ,pendingRequestWorkBook);
+			} else {
+				return ResponseEntity.status(HttpStatus.OK).body("There are no requests pending for Group or Designation approval with the MDO");
+			}
+			String csvFilePath = "/tmp/pendingRequest.csv";
+			this.convertXSSFWorkbookToCSV(pendingRequestWorkBook, csvFilePath);
+			responseEntity = this.preparePendingRequestFileResponse(csvFilePath);
 		} catch (Exception e) {
 			log.error("An error occurred while downloading file with pending requests", e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+			responseEntity =  ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 		}
-
-		return null;
+		return responseEntity;
 	}
+
 
 	private Workbook getBlankWorkseet() {
 		Workbook pendingRequestWorkBook = new XSSFWorkbook();
@@ -1275,5 +1299,151 @@ public class WorkflowServiceImpl implements Workflowservice {
 		cell13.setCellValue("Tags");
 
 		return pendingRequestWorkBook;
+	}
+
+	private void populateSheetWithPendingRequests(Map<String, Object> allPendingRequestMap, Map<String, Object> allUserDetails, Workbook pendingRequestWorkBook) {
+		Sheet sheet = pendingRequestWorkBook.getSheetAt(0);
+		int rowCount = 0;
+		for (Map.Entry<String, Object> userEntry : allUserDetails.entrySet()) {
+			rowCount++;
+			Row row = sheet.createRow(rowCount);
+			String userId = userEntry.getKey();
+			Map<String, Object> userInfo = (Map<String, Object>) userEntry.getValue();
+			List<Map<String, Object>> pendingRequestForTheUser = (List<Map<String, Object>>) allPendingRequestMap.get(userId);
+
+			Cell nameCell = row.createCell(0);
+			Cell emailCell = row.createCell(1);
+			Cell mobileNumberCell = row.createCell(2);
+			Cell groupCell = row.createCell(3);
+			Cell designationCell = row.createCell(4);
+			nameCell.setCellValue((String)userInfo.get(Constants.FIRSTNAME));
+			emailCell.setCellValue((String)userInfo.get(Constants.PRIMARY_EMAIL));
+			mobileNumberCell.setCellValue((String)userInfo.get(Constants.MOBILE_NUMBER));
+
+			for (Map<String, Object> entry : pendingRequestForTheUser) {
+				if(entry.containsKey(Constants.GROUP)){
+					groupCell.setCellValue((String)entry.get(Constants.GROUP));
+				}
+				if(entry.containsKey(Constants.DESIGNATION)){
+					designationCell.setCellValue((String)entry.get(Constants.DESIGNATION));
+				}
+			}
+		}
+	}
+
+	private Map<String, Object> getSearchObject(Set<String> userIds, List<String> fields, Map<String, Object> filters) {
+		Map<String, Object> request = new HashMap<>();
+		Map<String, Object> requestObject = new HashMap<>();
+		request.put(Constants.FILTERS, filters);
+		request.put(Constants.FIELDS_CONSTANT, fields);
+		requestObject.put(Constants.REQUEST, request);
+		return requestObject;
+	}
+
+	private Map<String, Object> getUserSearchDetails(Set<String> userIds, boolean isMdoSearch, String rootOrgId) throws Exception {
+		List<String> fields = new ArrayList<>();
+		Map<String, Object> filters = new HashMap<>();
+		filters.put(Constants.USER_ID, userIds);
+		fields.add(Constants.USER_ID);
+		if (isMdoSearch) {
+			fields.add(Constants.ROOT_ORG_NAME);
+			fields.add(Constants.ROOT_ORG_ID);
+		} else {
+			filters.put(Constants.ROOT_ORG_ID, rootOrgId);
+			fields.add(Constants.PROFILE_DETAILS_PERSONAL_DETAILS_MOBILE);
+			fields.add(Constants.PROFILE_DETAILS_PERSONAL_DETAILS_FIRST_NAME);
+			fields.add(Constants.PROFILE_DETAILS_PERSONAL_DETAILS_PRIMARY_EMAIL);
+		}
+		Map<String, Object> request = this.getSearchObject(userIds, fields, filters);
+		HashMap<String, String> headersValue = new HashMap<>();
+		headersValue.put("Content-Type", "application/json");
+		Map<String, Object> allUserDetails = new HashMap<>();
+		StringBuilder url = new StringBuilder(configuration.getLmsServiceHost())
+				.append(configuration.getLmsUserSearchEndPoint());
+		Map<String, Object> searchProfileApiResp = (Map<String, Object>) requestServiceImpl.fetchResultUsingPost(url, request, Map.class, headersValue);
+		if (searchProfileApiResp != null
+				&& "OK".equalsIgnoreCase((String) searchProfileApiResp.get(Constants.RESPONSE_CODE))) {
+			Map<String, Object> map = (Map<String, Object>) searchProfileApiResp.get(Constants.RESULT);
+			Map<String, Object> response = (Map<String, Object>) map.get(Constants.RESPONSE);
+			List<Map<String, Object>> contents = (List<Map<String, Object>>) response.get(Constants.CONTENT);
+			if (!CollectionUtils.isEmpty(contents)) {
+				Map<String, Object> mdoDetails = new HashMap<>();
+				if (isMdoSearch) {
+					Map<String, Object> mdoDetailsResponse = contents.get(0);
+					mdoDetails.put(Constants.USER_ID, mdoDetailsResponse.get(Constants.USER_ID));
+					mdoDetails.put(Constants.ROOT_ORG_ID, mdoDetailsResponse.get(Constants.ROOT_ORG_ID));
+					mdoDetails.put(Constants.ROOT_ORG_NAME, mdoDetailsResponse.get(Constants.ROOT_ORG_NAME));
+					allUserDetails.put((String) mdoDetailsResponse.get("userId"), mdoDetails);
+				} else {
+					for (Map<String, Object> content : contents) {
+
+						HashMap<String, Object> profileDetails = (HashMap<String, Object>) content
+								.get(Constants.PROFILE_DETAILS);
+						if (!CollectionUtils.isEmpty(profileDetails)) {
+							HashMap<String, Object> personalDetails = (HashMap<String, Object>) profileDetails
+									.get(Constants.PERSONAL_DETAILS);
+							if (!CollectionUtils.isEmpty(personalDetails)) {
+								Map<String, Object> userPersonalInfo = new HashMap<>();
+								userPersonalInfo.put(Constants.FIRSTNAME, personalDetails.get(Constants.FIRSTNAME));
+								userPersonalInfo.put(Constants.MOBILE_NUMBER, personalDetails.get(Constants.MOBILE));
+								userPersonalInfo.put(Constants.PRIMARY_EMAIL, personalDetails.get(Constants.PRIMARY_EMAIL));
+								allUserDetails.put((String) content.get(Constants.USER_ID), userPersonalInfo);
+							}
+						}
+					}
+				}
+			}
+		}
+		return allUserDetails;
+	}
+
+	private void convertXSSFWorkbookToCSV(Workbook workbook, String csvFilePath) throws IOException{
+		try (PrintWriter writer = new PrintWriter(Files.newOutputStream(Paths.get(csvFilePath)))) {
+			// Iterate through each sheet in the workbook
+			for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+				Sheet sheet = workbook.getSheetAt(i);
+
+                // Iterate through each row in the sheet
+                for (Row row : sheet) {
+                    Iterator<Cell> cellIterator = row.cellIterator();
+                    StringBuilder sb = new StringBuilder();
+
+                    // Iterate through each cell in the row
+                    while (cellIterator.hasNext()) {
+                        Cell cell = cellIterator.next();
+                        switch (cell.getCellType()) {
+                            case STRING:
+                                sb.append(cell.getStringCellValue());
+                                break;
+                            case BLANK:
+                                sb.append("");
+                                break;
+                            default:
+                                sb.append("");
+                        }
+                        if (cellIterator.hasNext()) {
+                            sb.append(",");
+                        }
+                    }
+                    writer.println(sb);
+                }
+			}
+		}
+    }
+
+	private ResponseEntity<?> preparePendingRequestFileResponse(String csvFilePath) throws InterruptedException, IOException {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + "pendingRequest.csv" + "\"");
+		headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+
+		File file = new File(csvFilePath);
+		Path filePath = Paths.get(String.format("%s/%s", Constants.LOCAL_BASE_PATH, "pendingRequest.csv"));
+		InputStreamResource fileStream = new InputStreamResource(new FileInputStream(file));
+		ResponseEntity<?> responseEntity =  ResponseEntity.ok()
+				.headers(headers)
+				.contentLength(Files.size(filePath))
+				.body(fileStream);
+		Files.delete(filePath);
+		return responseEntity;
 	}
 }

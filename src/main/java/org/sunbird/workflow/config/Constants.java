@@ -337,5 +337,12 @@ public class Constants {
 	public static final String PROFILE_DESIGNATION_STATUS = "profileDesignationStatus";
 	public static final String PINCODE = "pincode";
 	public static final String FIRST_NAME_CAMEL_CASE = "firstName";
+	public static final String MOBILE = "mobile";
+	public static final String FIELDS_CONSTANT = "fields";
+	public static final String ROOT_ORG_NAME = "rootOrgName";
+	public static final String MOBILE_NUMBER = "mobileNumber";
+	public static final String PROFILE_DETAILS_PERSONAL_DETAILS_MOBILE = "profileDetails.personalDetails.mobile";
+	public static final String PROFILE_DETAILS_PERSONAL_DETAILS_FIRST_NAME = "profileDetails.personalDetails.firstname";
+	public static final String PROFILE_DETAILS_PERSONAL_DETAILS_PRIMARY_EMAIL = "profileDetails.personalDetails.primaryEmail";
 
 }

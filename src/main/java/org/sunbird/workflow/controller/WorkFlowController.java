@@ -125,7 +125,7 @@ public class WorkFlowController {
 	}
 
 	@GetMapping(path = "/admin/pendingRequest/download")
-	public ResponseEntity<InputStreamResource> downloadPendingRequestFile(@RequestHeader(Constants.X_AUTH_TOKEN) String userAuthToken) {
+	public ResponseEntity<?> downloadPendingRequestFile(@RequestHeader(Constants.X_AUTH_TOKEN) String userAuthToken) {
 		return workflowService.downloadPendingRequestFile(userAuthToken);
 	}
 }
