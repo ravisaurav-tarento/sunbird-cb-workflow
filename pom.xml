@@ -124,6 +124,11 @@
             <artifactId>keycloak-common</artifactId>
             <version>18.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.9.0</version>
+        </dependency>
     </dependencies>
 
     <build>
