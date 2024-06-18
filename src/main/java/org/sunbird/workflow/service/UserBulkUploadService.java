@@ -222,7 +222,7 @@ public class UserBulkUploadService {
                     }
                     if(!isEmailOrPhoneNumberValid){
                         errList.add("User record does not exist with given email and/or Mobile Number");
-                    } else{
+                    } else {
                         errList.clear();
                         String userRootOrgId = (String) userDetails.get(Constants.ROOT_ORG_ID);
                         String mdoAdminRootOrgId = inputDataMap.get(Constants.ROOT_ORG_ID);
@@ -754,21 +754,15 @@ public class UserBulkUploadService {
                         }
                     }
 
-                    // Organization-specific validations
-                    if (!isEmailOrPhoneNumberValid) {
-                        errList.add("User record does not exist or is invalid");
-                    } else {
-                        // Validate and update fields
-                        if (!record.get(0).isEmpty()) {
-                            String fullName = record.get(0).trim();
-                            if (ValidationUtil.validateFullName(fullName)) {
-                                valuesToBeUpdate.put(Constants.FIRSTNAME, fullName);
-                            } else {
-                                errList.add("Invalid Full Name format");
-                            }
+                    // Validate and update fields
+                    if (!record.get(0).isEmpty()) {
+                        String fullName = record.get(0).trim();
+                        if (ValidationUtil.validateFullName(fullName)) {
+                            valuesToBeUpdate.put(Constants.FIRSTNAME, fullName);
+                        } else {
+                            errList.add("Invalid Full Name format");
                         }
                     }
-
                         // Group
                         if (!record.get(3).isEmpty()) {
                             String group = record.get(3).trim();

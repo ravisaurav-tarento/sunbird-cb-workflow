@@ -124,7 +124,7 @@ public class WorkFlowController {
 		return workflowService.downloadBulkUploadFile(fileName);
 	}
 
-	@PostMapping(path = "/admin/v1/bulkupdate/transition", produces = MediaType.APPLICATION_JSON_VALUE)
+	@PostMapping(path = "/admin/v2/bulkupdate/transition", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<SBApiResponse> wfBulkUpdateTransitionV1(@RequestHeader(Constants.X_AUTH_TOKEN) String userAuthToken,
 																  @RequestParam("file")MultipartFile file) {
 		SBApiResponse response = workflowService.workflowBulkUpdateTransitionV1(userAuthToken, file);
