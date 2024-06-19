@@ -871,20 +871,20 @@ public class UserBulkUploadService {
 
                         // Tags
                         if (!record.get(13).isEmpty()) {
-                            String[] tagStrList = record.get(13).split(",");
+                            String[] tagStrList = record.get(13).split("&");
                             List<String> tagList = new ArrayList<>();
                             for (String tag : tagStrList) {
                                 tagList.add(tag.trim());
                             }
                             if (!ValidationUtil.validateTag(tagList)) {
                                 errList.add("Invalid Tag: " + tagStrList +
-                                        " Tags are comma-separated string values. A Tag can contain only alphabets with spaces. eg: Bihar Circle, Patna Division");
+                                        " Tags are separated by '&' and can contain only alphabets with spaces. e.g., Bihar Circle&Patna Division");
                             }
                             valuesToBeUpdate.put(Constants.TAG, tagStrList);
                         }
 
 
-                        String statusValue = errList.isEmpty() ? "Success" : "Failed";
+                        String statusValue = errList.isEmpty() ? Constants.SUCCESSFUL_UPERCASE : Constants.FAILED_UPPERCASE;
                         valuesToBeUpdate.put("Status", statusValue);
                         valuesToBeUpdate.put("Error Details", errList.isEmpty() ? "" : String.join(", ", errList));
 
@@ -892,6 +892,7 @@ public class UserBulkUploadService {
                         if (!CollectionUtils.isEmpty(userDetails)) {
                             userId = (String) userDetails.get(Constants.USER_ID);
                         }
+                        logger.info("userId "+userId);
                         List<WfStatusEntity> userPendingRequest = wfStatusRepo.findByUserIdAndCurrentStatus(userId, true);
                         boolean userRecordUpdate = true;
                         if (!CollectionUtils.isEmpty(userPendingRequest)) {
@@ -917,7 +918,7 @@ public class UserBulkUploadService {
                                                 valuesToBeUpdate.put("Status", Constants.FAILED_UPPERCASE);
                                                 valuesToBeUpdate.put("Error Details", Constants.UPDATE_FAILED);
                                             } else {
-                                                valuesToBeUpdate.put("Status", Constants.SUCCESS_UPPERCASE);
+                                                valuesToBeUpdate.put("Status", Constants.SUCCESSFUL_UPERCASE);
                                             }
                                             valuesToBeUpdate.remove(entry.getKey());
                                         }
@@ -980,7 +981,7 @@ public class UserBulkUploadService {
                         }
                         if (userRecordUpdate) {
                             noOfSuccessfulRecords++;
-                            valuesToBeUpdate.put("Status", Constants.SUCCESS_UPPERCASE);
+                            valuesToBeUpdate.put("Status", Constants.SUCCESSFUL_UPERCASE);
                             valuesToBeUpdate.put("Error Details", "NA");
                         } else {
                             failedRecordsCount++;
@@ -1014,10 +1015,12 @@ public class UserBulkUploadService {
                         status = Constants.FAILED_UPPERCASE;
                     }
                     csvPrinter.flush();
-                    status = uploadTheUpdatedCSVFile(file,csvPrinter);
+
+                    status = uploadTheUpdatedCSVFile(file);
+
 
                     status = (failedRecordsCount == 0 && totalRecordsCount == noOfSuccessfulRecords && totalRecordsCount >= 1)
-                            ? Constants.SUCCESSFUL
+                            ? Constants.SUCCESSFUL_UPERCASE
                             : Constants.FAILED_UPPERCASE;
 
                     updateUserBulkUploadStatus(inputDataMap.get(Constants.ROOT_ORG_ID), inputDataMap.get(Constants.IDENTIFIER),
@@ -1025,6 +1028,7 @@ public class UserBulkUploadService {
 
                 } else{
                     logger.error("File does not exist or is empty.");
+                    status = Constants.FAILED_UPPERCASE;
                 }
             } catch (Exception e) {
             logger.error(String.format("Error in Process Bulk Upload %s", e.getMessage()), e);
@@ -1044,11 +1048,9 @@ public class UserBulkUploadService {
             }
         }
 
-    private String uploadTheUpdatedCSVFile(File file,CSVPrinter csvPrinter)
+    private String uploadTheUpdatedCSVFile(File file)
             throws IOException {
-        FileOutputStream fileOut = new FileOutputStream(file);
-        csvPrinter.print(fileOut);
-        fileOut.close();
+
         SBApiResponse uploadResponse = storageService.uploadFile(file, configuration.getUserBulkUpdateFolderName(), configuration.getWorkflowCloudContainerName());
         if (!HttpStatus.OK.equals(uploadResponse.getResponseCode())) {
             logger.info(String.format("Failed to upload file. Error: %s",

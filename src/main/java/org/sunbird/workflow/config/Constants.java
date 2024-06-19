@@ -337,6 +337,8 @@ public class Constants {
 	public static final String PROFILE_DESIGNATION_STATUS = "profileDesignationStatus";
 	public static final String PINCODE = "pincode";
 	public static final String FIRST_NAME_CAMEL_CASE = "firstName";
+	public static final String SUCCESSFUL_UPERCASE = "SUCCESSFUL";
+
 	public static final String MOBILE = "mobile";
 	public static final String FIELDS_CONSTANT = "fields";
 	public static final String ROOT_ORG_NAME = "rootOrgName";
