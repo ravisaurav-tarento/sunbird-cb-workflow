@@ -224,6 +224,9 @@ public class Configuration {
     @Value("${user.default.group.values}")
     private String groupValues;
 
+    @Value("${pending.request.count.limit}")
+    private int pendingRequestCountLimit;
+
     public String getModificationRecordAllowActions() {
         return modificationRecordAllowActions;
     }
@@ -814,5 +817,13 @@ public class Configuration {
 
     public void setGroupValues(String groupValues) {
         this.groupValues = groupValues;
+    }
+
+    public int getPendingRequestCountLimit() {
+        return pendingRequestCountLimit;
+    }
+
+    public void setPendingRequestCountLimit(int pendingRequestCountLimit) {
+        this.pendingRequestCountLimit = pendingRequestCountLimit;
     }
 }

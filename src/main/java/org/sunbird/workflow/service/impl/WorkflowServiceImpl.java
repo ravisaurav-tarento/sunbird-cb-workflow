@@ -1255,7 +1255,6 @@ public class WorkflowServiceImpl implements Workflowservice {
 		ResponseEntity<?> responseEntity;
 		try {
 			Set<String> userIdSet = new HashSet<>();
-			Workbook pendingRequestWorkBook = this.getBlankWorkseet();
 			String mdoUserId = accessTokenValidator.fetchUserIdFromAccessToken(userAuthToken);
 			userIdSet.add(mdoUserId);
 			Map<String, Object> mdoDetails = this.getUserSearchDetails(userIdSet,true, null);
@@ -1263,9 +1262,13 @@ public class WorkflowServiceImpl implements Workflowservice {
 			String departmentName = (String) mdoInfo.get(Constants.ROOT_ORG_NAME);
 			String rootOrgId = (String) mdoInfo.get(Constants.ROOT_ORG_ID);
 			Map<String, Object> allPendingRequest = new HashMap<>();
-			List<WfStatusEntity> pendingRequestsEntityList = wfStatusRepo.getListOfDistinctApplicationUsingDept(Constants.PROFILE_SERVICE_NAME, Constants.SEND_FOR_APPROVAL, departmentName);
+			int limit = configuration.getPendingRequestCountLimit();
+			List<WfStatusEntity> pendingRequestsEntityList = wfStatusRepo.getListOfApplicationUsingDept(Constants.PROFILE_SERVICE_NAME, Constants.SEND_FOR_APPROVAL, departmentName, limit);
 			if(CollectionUtils.isEmpty(pendingRequestsEntityList)) {
-				return ResponseEntity.status(HttpStatus.OK).body("There are no approval requests pending for approval with the MDO");
+				String message = "There are no approval requests pending for approval with the MDO";
+				InputStream inputStream = new ByteArrayInputStream(message.getBytes());
+				InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
+				return ResponseEntity.status(HttpStatus.OK).body(inputStreamResource);
 			}
 			userIdSet.clear();
 			for (WfStatusEntity wfStatusEntity : pendingRequestsEntityList) {
@@ -1292,14 +1295,16 @@ public class WorkflowServiceImpl implements Workflowservice {
 					}
 				}
 			}
+			String csvFilePath = "/tmp/pendingRequest.csv";
 			Map<String, Object> allUserDetails = this.getUserSearchDetails(userIdSet,false, rootOrgId);
 			if(MapUtils.isNotEmpty(allUserDetails)){
-				this.populateSheetWithPendingRequests(allPendingRequest, allUserDetails ,pendingRequestWorkBook);
+				this.populateSheetWithPendingRequests(allPendingRequest, allUserDetails ,csvFilePath);
 			} else {
-				return ResponseEntity.status(HttpStatus.OK).body("There are no requests pending for Group or Designation approval with the MDO");
+				String message = "There are no requests pending for Group or Designation approval with the MDO";
+				InputStream inputStream = new ByteArrayInputStream(message.getBytes());
+				InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
+				return ResponseEntity.status(HttpStatus.OK).body(inputStreamResource);
 			}
-			String csvFilePath = "/tmp/pendingRequest.csv";
-			this.convertXSSFWorkbookToCSV(pendingRequestWorkBook, csvFilePath);
 			responseEntity = this.preparePendingRequestFileResponse(csvFilePath);
 		} catch (Exception e) {
 			log.error("An error occurred while downloading file with pending requests", e);
@@ -1308,86 +1313,32 @@ public class WorkflowServiceImpl implements Workflowservice {
 		return responseEntity;
 	}
 
-
-	private Workbook getBlankWorkseet() {
-		Workbook pendingRequestWorkBook = new XSSFWorkbook();
-
-		Sheet pendingRequestSheet = pendingRequestWorkBook.createSheet("PendingUserRequest");
-		Row row = pendingRequestSheet.createRow(0);
-
-		Cell cell0 = row.createCell(0);
-		cell0.setCellValue("Full Name");
-
-		Cell cell1 = row.createCell(1);
-		cell1.setCellValue("Email");
-
-		Cell cell2 = row.createCell(2);
-		cell2.setCellValue("Mobile Number");
-
-		Cell cell3 = row.createCell(3);
-		cell3.setCellValue("Group");
-
-		Cell cell4 = row.createCell(4);
-		cell4.setCellValue("Designation");
-
-		Cell cell5 = row.createCell(5);
-		cell5.setCellValue("Gender");
-
-		Cell cell6 = row.createCell(6);
-		cell6.setCellValue("Category");
-
-		Cell cell7 = row.createCell(7);
-		cell7.setCellValue("Date of Birth (dd-mm-yyy)");
-
-		Cell cell8 = row.createCell(8);
-		cell8.setCellValue("Mother Tongue");
-
-		Cell cell9 = row.createCell(9);
-		cell9.setCellValue("Employee ID");
-
-		Cell cell10 = row.createCell(10);
-		cell10.setCellValue("Office Pin Code");
-
-		Cell cell11 = row.createCell(11);
-		cell11.setCellValue("External System ID");
-
-		Cell cell12 = row.createCell(12);
-		cell12.setCellValue("External System Name");
-
-		Cell cell13 = row.createCell(13);
-		cell13.setCellValue("Tags");
-
-		return pendingRequestWorkBook;
-	}
-
-	private void populateSheetWithPendingRequests(Map<String, Object> allPendingRequestMap, Map<String, Object> allUserDetails, Workbook pendingRequestWorkBook) {
-		Sheet sheet = pendingRequestWorkBook.getSheetAt(0);
-		int rowCount = 0;
+	private void populateSheetWithPendingRequests(Map<String, Object> allPendingRequestMap, Map<String, Object> allUserDetails, String csvFilePath) throws IOException {
+		PrintWriter writer = new PrintWriter(new FileWriter(csvFilePath));
+		writer.println("Full Name,Email,Mobile Number,Group,Designation,Gender,Category,Date of Birth (dd-mm-yyy),Mother Tongue,Employee ID,Office Pin Code,External System ID,External System Name,Tags");
 		for (Map.Entry<String, Object> userEntry : allUserDetails.entrySet()) {
-			rowCount++;
-			Row row = sheet.createRow(rowCount);
 			String userId = userEntry.getKey();
 			Map<String, Object> userInfo = (Map<String, Object>) userEntry.getValue();
 			List<Map<String, Object>> pendingRequestForTheUser = (List<Map<String, Object>>) allPendingRequestMap.get(userId);
 
-			Cell nameCell = row.createCell(0);
-			Cell emailCell = row.createCell(1);
-			Cell mobileNumberCell = row.createCell(2);
-			Cell groupCell = row.createCell(3);
-			Cell designationCell = row.createCell(4);
-			nameCell.setCellValue((String)userInfo.get(Constants.FIRSTNAME));
-			emailCell.setCellValue((String)userInfo.get(Constants.PRIMARY_EMAIL));
-			mobileNumberCell.setCellValue((String)userInfo.get(Constants.MOBILE_NUMBER));
+			String userFirstName = (String)userInfo.get(Constants.FIRSTNAME);
+			String primaryEmail = (String) userInfo.get(Constants.PRIMARY_EMAIL);
+			String mobileNumber = (String) userInfo.get(Constants.MOBILE_NUMBER);
+			mobileNumber = mobileNumber != null ? mobileNumber : "";
+			String group = "";
+			String designation = "";
 
 			for (Map<String, Object> entry : pendingRequestForTheUser) {
 				if(entry.containsKey(Constants.GROUP)){
-					groupCell.setCellValue((String)entry.get(Constants.GROUP));
+					group = (String)entry.get(Constants.GROUP);
 				}
 				if(entry.containsKey(Constants.DESIGNATION)){
-					designationCell.setCellValue((String)entry.get(Constants.DESIGNATION));
+					designation = (String)entry.get(Constants.DESIGNATION);
 				}
 			}
+			writer.printf("%s,%s,%s,%s,%s%n",userFirstName,primaryEmail,mobileNumber,group,designation);
 		}
+		writer.close();
 	}
 
 	private Map<String, Object> getSearchObject(Set<String> userIds, List<String> fields, Map<String, Object> filters) {
@@ -1432,7 +1383,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 					mdoDetails.put(Constants.USER_ID, mdoDetailsResponse.get(Constants.USER_ID));
 					mdoDetails.put(Constants.ROOT_ORG_ID, mdoDetailsResponse.get(Constants.ROOT_ORG_ID));
 					mdoDetails.put(Constants.ROOT_ORG_NAME, mdoDetailsResponse.get(Constants.ROOT_ORG_NAME));
-					allUserDetails.put((String) mdoDetailsResponse.get("userId"), mdoDetails);
+					allUserDetails.put((String) mdoDetailsResponse.get(Constants.USER_ID), mdoDetails);
 				} else {
 					for (Map<String, Object> content : contents) {
 
@@ -1455,40 +1406,6 @@ public class WorkflowServiceImpl implements Workflowservice {
 		}
 		return allUserDetails;
 	}
-
-	private void convertXSSFWorkbookToCSV(Workbook workbook, String csvFilePath) throws IOException{
-		try (PrintWriter writer = new PrintWriter(Files.newOutputStream(Paths.get(csvFilePath)))) {
-			// Iterate through each sheet in the workbook
-			for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-				Sheet sheet = workbook.getSheetAt(i);
-
-                // Iterate through each row in the sheet
-                for (Row row : sheet) {
-                    Iterator<Cell> cellIterator = row.cellIterator();
-                    StringBuilder sb = new StringBuilder();
-
-                    // Iterate through each cell in the row
-                    while (cellIterator.hasNext()) {
-                        Cell cell = cellIterator.next();
-                        switch (cell.getCellType()) {
-                            case STRING:
-                                sb.append(cell.getStringCellValue());
-                                break;
-                            case BLANK:
-                                sb.append("");
-                                break;
-                            default:
-                                sb.append("");
-                        }
-                        if (cellIterator.hasNext()) {
-                            sb.append(",");
-                        }
-                    }
-                    writer.println(sb);
-                }
-			}
-		}
-    }
 
 	private ResponseEntity<?> preparePendingRequestFileResponse(String csvFilePath) throws InterruptedException, IOException {
 		HttpHeaders headers = new HttpHeaders();
