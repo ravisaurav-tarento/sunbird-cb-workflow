@@ -1014,7 +1014,9 @@ public class UserBulkUploadService {
                         status = Constants.FAILED_UPPERCASE;
                     }
                     csvPrinter.flush();
+
                     status = uploadTheUpdatedCSVFile(file);
+
 
                     status = (failedRecordsCount == 0 && totalRecordsCount == noOfSuccessfulRecords && totalRecordsCount >= 1)
                             ? Constants.SUCCESSFUL
@@ -1046,6 +1048,7 @@ public class UserBulkUploadService {
 
     private String uploadTheUpdatedCSVFile(File file)
             throws IOException {
+
         SBApiResponse uploadResponse = storageService.uploadFile(file, configuration.getUserBulkUpdateFolderName(), configuration.getWorkflowCloudContainerName());
         if (!HttpStatus.OK.equals(uploadResponse.getResponseCode())) {
             logger.info(String.format("Failed to upload file. Error: %s",
