@@ -346,5 +346,6 @@ public class Constants {
 	public static final String PROFILE_DETAILS_PERSONAL_DETAILS_MOBILE = "profileDetails.personalDetails.mobile";
 	public static final String PROFILE_DETAILS_PERSONAL_DETAILS_FIRST_NAME = "profileDetails.personalDetails.firstname";
 	public static final String PROFILE_DETAILS_PERSONAL_DETAILS_PRIMARY_EMAIL = "profileDetails.personalDetails.primaryEmail";
+	public static final String NO_PENDING_REQUEST_AVAILABLE_MESSAGE = "There are no approval requests pending for approval with the MDO";
 
 }

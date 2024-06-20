@@ -1265,12 +1265,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 			int limit = configuration.getPendingRequestCountLimit();
 			List<WfStatusEntity> pendingRequestsEntityList = wfStatusRepo.getListOfApplicationUsingDept(Constants.PROFILE_SERVICE_NAME, Constants.SEND_FOR_APPROVAL, departmentName, limit);
 			if(CollectionUtils.isEmpty(pendingRequestsEntityList)) {
-				String message = "There are no approval requests pending for approval with the MDO";
-				HttpHeaders httpHeaders = new HttpHeaders();
-				httpHeaders.put(Constants.COUNT, Collections.singletonList(String.valueOf(0)));
-				InputStream inputStream = new ByteArrayInputStream(message.getBytes());
-				InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
-				return ResponseEntity.status(HttpStatus.OK).headers(httpHeaders).body(inputStreamResource);
+				return this.getNoPendingRequestAvailableResponse(Constants. NO_PENDING_REQUEST_AVAILABLE_MESSAGE);
 			}
 			userIdSet.clear();
 			for (WfStatusEntity wfStatusEntity : pendingRequestsEntityList) {
@@ -1298,19 +1293,16 @@ public class WorkflowServiceImpl implements Workflowservice {
 				}
 			}
 			String csvFilePath = "/tmp/pendingRequest.csv";
-			Map<String, Object> allUserDetails = Collections.EMPTY_MAP;
-			if(!CollectionUtils.isEmpty(userIdSet)){
+			Map<String, Object> allUserDetails;
+			if (CollectionUtils.isEmpty(userIdSet)) {
+				return this.getNoPendingRequestAvailableResponse(Constants.NO_PENDING_REQUEST_AVAILABLE_MESSAGE);
+			} else {
 				allUserDetails = this.getUserSearchDetails(userIdSet,false, rootOrgId);
 			}
 			if(MapUtils.isNotEmpty(allUserDetails)){
 				this.populateSheetWithPendingRequests(allPendingRequest, allUserDetails ,csvFilePath);
 			} else {
-				HttpHeaders httpHeaders = new HttpHeaders();
-				httpHeaders.put(Constants.COUNT, Collections.singletonList(String.valueOf(0)));
-				String message = "There are no requests pending for Group or Designation approval with the MDO";
-				InputStream inputStream = new ByteArrayInputStream(message.getBytes());
-				InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
-				return ResponseEntity.status(HttpStatus.OK).headers(httpHeaders).body(inputStreamResource);
+				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 			}
 			responseEntity = this.preparePendingRequestFileResponse(csvFilePath, allUserDetails.size());
 		} catch (Exception e) {
@@ -1429,5 +1421,13 @@ public class WorkflowServiceImpl implements Workflowservice {
 				.body(fileStream);
 		Files.delete(filePath);
 		return responseEntity;
+	}
+
+	private ResponseEntity<?> getNoPendingRequestAvailableResponse(String message){
+		HttpHeaders httpHeaders = new HttpHeaders();
+		httpHeaders.put(Constants.COUNT, Collections.singletonList(String.valueOf(0)));
+		InputStream inputStream = new ByteArrayInputStream(message.getBytes());
+		InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
+		return ResponseEntity.status(HttpStatus.OK).headers(httpHeaders).body(inputStreamResource);
 	}
 }
