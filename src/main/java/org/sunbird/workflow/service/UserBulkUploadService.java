@@ -340,7 +340,7 @@ public class UserBulkUploadService {
                         }
                         if (!StringUtils.isEmpty(valuesToBeUpdate.get(Constants.EMPLOYEE_CODE))) {
                             if (!ValidationUtil.validateEmployeeId((String) valuesToBeUpdate.get(Constants.EMPLOYEE_CODE)))
-                                errList.add("Invalid Employee ID : Employee ID can contain alphanumeric characters or numeric character and have a max length of 30");
+                                errList.add("Invalid Employee ID : Employee ID can contain alphabetic, alphanumeric numeric character(s) and have a max length of 30");
                         }
                     }
                     if (nextRow.getCell(10) != null && nextRow.getCell(10).getCellType() != CellType.BLANK) {
@@ -397,7 +397,7 @@ public class UserBulkUploadService {
                             }
                             valuesToBeUpdate.put(Constants.TAG, tagList);
                             if (!ValidationUtil.validateTag((List<String>)valuesToBeUpdate.get(Constants.TAG))) {
-                                errList.add("Invalid Tag : Tags are comma seperated string values. A Tag can contain only alphabets with spaces. eg: Bihar Circle, Patna Division");
+                                errList.add("Invalid Tag : Tags are comma separated string values. A Tag can contain only alphabets with spaces. eg: Bihar Circle, Patna Division");
                             }
                         } else {
                             errList.add("Invalid value for Tags type. Expecting string format");
@@ -768,7 +768,7 @@ public class UserBulkUploadService {
                             String group = record.get(3).trim();
                             valuesToBeUpdate.put(Constants.GROUP, group);
                             if (!this.validateGroupValue(group)) {
-                                errList.add("invalid value of Group Type, please choose a valid value from the default list");
+                                errList.add("Invalid value of Group Type, please choose a valid value from the default list");
                             }
                         }
 
