@@ -1,8 +1,6 @@
 package org.sunbird.workflow.service.impl;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,8 +10,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.collections.MapUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
@@ -1244,5 +1248,186 @@ public class WorkflowServiceImpl implements Workflowservice {
 					String.format("Failed to process user bulk upload request. Error: ", e.getMessage()));
 		}
 		return response;
+	}
+
+	@Override
+	public ResponseEntity<?> downloadPendingRequestFile(String userAuthToken) {
+		ResponseEntity<?> responseEntity;
+		try {
+			Set<String> userIdSet = new HashSet<>();
+			String mdoUserId = accessTokenValidator.fetchUserIdFromAccessToken(userAuthToken);
+			userIdSet.add(mdoUserId);
+			Map<String, Object> mdoDetails = this.getUserSearchDetails(userIdSet,true, null);
+			Map<String, Object> mdoInfo = (Map<String, Object>) mdoDetails.get(mdoUserId);
+			String departmentName = (String) mdoInfo.get(Constants.ROOT_ORG_NAME);
+			String rootOrgId = (String) mdoInfo.get(Constants.ROOT_ORG_ID);
+			Map<String, Object> allPendingRequest = new HashMap<>();
+			int limit = configuration.getPendingRequestCountLimit();
+			List<WfStatusEntity> pendingRequestsEntityList = wfStatusRepo.getListOfApplicationUsingDept(Constants.PROFILE_SERVICE_NAME, Constants.SEND_FOR_APPROVAL, departmentName, limit);
+			if(CollectionUtils.isEmpty(pendingRequestsEntityList)) {
+				return this.getNoPendingRequestAvailableResponse(Constants. NO_PENDING_REQUEST_AVAILABLE_MESSAGE);
+			}
+			userIdSet.clear();
+			for (WfStatusEntity wfStatusEntity : pendingRequestsEntityList) {
+				ObjectMapper objectMapper = new ObjectMapper();
+				List<Map<String, Object>> valuesToBeUpdate = objectMapper.readValue(wfStatusEntity.getUpdateFieldValues(), new TypeReference<List<Map<String, Object>>>() {
+				});
+				List<Map<String, Object>> pendingRequestList;
+				for(Map<String, Object> valueToUpdate : valuesToBeUpdate){
+					if(valueToUpdate.containsKey(Constants.TO_VALUE)){
+						Map<String, Object> updateKeyValue = (Map<String, Object>) valueToUpdate.get(Constants.TO_VALUE);
+						String keyToUpdate = updateKeyValue.keySet().stream().findFirst().get();
+						if(Constants.DESIGNATION.equalsIgnoreCase(keyToUpdate) || Constants.GROUP.equalsIgnoreCase(keyToUpdate)){
+							userIdSet.add(wfStatusEntity.getUserId());
+							if(allPendingRequest.containsKey(wfStatusEntity.getUserId())) {
+								pendingRequestList = (List<Map<String, Object>>) allPendingRequest.get(wfStatusEntity.getUserId());
+								pendingRequestList.add(updateKeyValue);
+								allPendingRequest.put(wfStatusEntity.getUserId(), pendingRequestList);
+							} else {
+								pendingRequestList = new ArrayList<>();
+								pendingRequestList.add(updateKeyValue);
+								allPendingRequest.put(wfStatusEntity.getUserId(), pendingRequestList);
+							}
+						}
+					}
+				}
+			}
+			String csvFilePath = "/tmp/pendingRequest.csv";
+			Map<String, Object> allUserDetails;
+			if (CollectionUtils.isEmpty(userIdSet)) {
+				return this.getNoPendingRequestAvailableResponse(Constants.NO_PENDING_REQUEST_AVAILABLE_MESSAGE);
+			} else {
+				allUserDetails = this.getUserSearchDetails(userIdSet,false, rootOrgId);
+			}
+			if(MapUtils.isNotEmpty(allUserDetails)){
+				this.populateSheetWithPendingRequests(allPendingRequest, allUserDetails ,csvFilePath);
+			} else {
+				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+			}
+			responseEntity = this.preparePendingRequestFileResponse(csvFilePath, allUserDetails.size());
+		} catch (Exception e) {
+			log.error("An error occurred while downloading file with pending requests", e);
+			responseEntity =  ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+		return responseEntity;
+	}
+
+	private void populateSheetWithPendingRequests(Map<String, Object> allPendingRequestMap, Map<String, Object> allUserDetails, String csvFilePath) throws IOException {
+		PrintWriter writer = new PrintWriter(new FileWriter(csvFilePath));
+		writer.println("Full Name,Email,Mobile Number,Group,Designation,Gender,Category,Date of Birth (dd-mm-yyy),Mother Tongue,Employee ID,Office Pin Code,External System ID,External System Name,Tags");
+		for (Map.Entry<String, Object> userEntry : allUserDetails.entrySet()) {
+			String userId = userEntry.getKey();
+			Map<String, Object> userInfo = (Map<String, Object>) userEntry.getValue();
+			List<Map<String, Object>> pendingRequestForTheUser = (List<Map<String, Object>>) allPendingRequestMap.get(userId);
+
+			String userFirstName = (String)userInfo.get(Constants.FIRSTNAME);
+			String primaryEmail = (String) userInfo.get(Constants.PRIMARY_EMAIL);
+			String mobileNumber = (String) userInfo.get(Constants.MOBILE_NUMBER);
+			mobileNumber = mobileNumber != null ? mobileNumber : "";
+			String group = "";
+			String designation = "";
+
+			for (Map<String, Object> entry : pendingRequestForTheUser) {
+				if(entry.containsKey(Constants.GROUP)){
+					group = (String)entry.get(Constants.GROUP);
+				}
+				if(entry.containsKey(Constants.DESIGNATION)){
+					designation = (String)entry.get(Constants.DESIGNATION);
+				}
+			}
+			writer.printf("%s,%s,%s,%s,%s%n",userFirstName,primaryEmail,mobileNumber,group,designation);
+		}
+		writer.close();
+	}
+
+	private Map<String, Object> getSearchObject(Set<String> userIds, List<String> fields, Map<String, Object> filters) {
+		Map<String, Object> request = new HashMap<>();
+		Map<String, Object> requestObject = new HashMap<>();
+		request.put(Constants.FILTERS, filters);
+		request.put(Constants.FIELDS_CONSTANT, fields);
+		requestObject.put(Constants.REQUEST, request);
+		return requestObject;
+	}
+
+	private Map<String, Object> getUserSearchDetails(Set<String> userIds, boolean isMdoSearch, String rootOrgId) throws Exception {
+		List<String> fields = new ArrayList<>();
+		Map<String, Object> filters = new HashMap<>();
+		filters.put(Constants.USER_ID, userIds);
+		fields.add(Constants.USER_ID);
+		if (isMdoSearch) {
+			fields.add(Constants.ROOT_ORG_NAME);
+			fields.add(Constants.ROOT_ORG_ID);
+		} else {
+			filters.put(Constants.ROOT_ORG_ID, rootOrgId);
+			fields.add(Constants.PROFILE_DETAILS_PERSONAL_DETAILS_MOBILE);
+			fields.add(Constants.PROFILE_DETAILS_PERSONAL_DETAILS_FIRST_NAME);
+			fields.add(Constants.PROFILE_DETAILS_PERSONAL_DETAILS_PRIMARY_EMAIL);
+		}
+		Map<String, Object> request = this.getSearchObject(userIds, fields, filters);
+		HashMap<String, String> headersValue = new HashMap<>();
+		headersValue.put("Content-Type", "application/json");
+		Map<String, Object> allUserDetails = new HashMap<>();
+		StringBuilder url = new StringBuilder(configuration.getLmsServiceHost())
+				.append(configuration.getLmsUserSearchEndPoint());
+		Map<String, Object> searchProfileApiResp = (Map<String, Object>) requestServiceImpl.fetchResultUsingPost(url, request, Map.class, headersValue);
+		if (searchProfileApiResp != null
+				&& "OK".equalsIgnoreCase((String) searchProfileApiResp.get(Constants.RESPONSE_CODE))) {
+			Map<String, Object> map = (Map<String, Object>) searchProfileApiResp.get(Constants.RESULT);
+			Map<String, Object> response = (Map<String, Object>) map.get(Constants.RESPONSE);
+			List<Map<String, Object>> contents = (List<Map<String, Object>>) response.get(Constants.CONTENT);
+			if (!CollectionUtils.isEmpty(contents)) {
+				Map<String, Object> mdoDetails = new HashMap<>();
+				if (isMdoSearch) {
+					Map<String, Object> mdoDetailsResponse = contents.get(0);
+					mdoDetails.put(Constants.USER_ID, mdoDetailsResponse.get(Constants.USER_ID));
+					mdoDetails.put(Constants.ROOT_ORG_ID, mdoDetailsResponse.get(Constants.ROOT_ORG_ID));
+					mdoDetails.put(Constants.ROOT_ORG_NAME, mdoDetailsResponse.get(Constants.ROOT_ORG_NAME));
+					allUserDetails.put((String) mdoDetailsResponse.get(Constants.USER_ID), mdoDetails);
+				} else {
+					for (Map<String, Object> content : contents) {
+
+						HashMap<String, Object> profileDetails = (HashMap<String, Object>) content
+								.get(Constants.PROFILE_DETAILS);
+						if (!CollectionUtils.isEmpty(profileDetails)) {
+							HashMap<String, Object> personalDetails = (HashMap<String, Object>) profileDetails
+									.get(Constants.PERSONAL_DETAILS);
+							if (!CollectionUtils.isEmpty(personalDetails)) {
+								Map<String, Object> userPersonalInfo = new HashMap<>();
+								userPersonalInfo.put(Constants.FIRSTNAME, personalDetails.get(Constants.FIRSTNAME));
+								userPersonalInfo.put(Constants.MOBILE_NUMBER, personalDetails.get(Constants.MOBILE));
+								userPersonalInfo.put(Constants.PRIMARY_EMAIL, personalDetails.get(Constants.PRIMARY_EMAIL));
+								allUserDetails.put((String) content.get(Constants.USER_ID), userPersonalInfo);
+							}
+						}
+					}
+				}
+			}
+		}
+		return allUserDetails;
+	}
+
+	private ResponseEntity<?> preparePendingRequestFileResponse(String csvFilePath, int size) throws InterruptedException, IOException {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + "pendingRequest.csv" + "\"");
+		headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+		headers.put(Constants.COUNT, Collections.singletonList(String.valueOf(size)));
+
+		File file = new File(csvFilePath);
+		Path filePath = Paths.get(String.format("%s/%s", Constants.LOCAL_BASE_PATH, "pendingRequest.csv"));
+		InputStreamResource fileStream = new InputStreamResource(new FileInputStream(file));
+		ResponseEntity<?> responseEntity =  ResponseEntity.ok()
+				.headers(headers)
+				.contentLength(Files.size(filePath))
+				.body(fileStream);
+		Files.delete(filePath);
+		return responseEntity;
+	}
+
+	private ResponseEntity<?> getNoPendingRequestAvailableResponse(String message){
+		HttpHeaders httpHeaders = new HttpHeaders();
+		httpHeaders.put(Constants.COUNT, Collections.singletonList(String.valueOf(0)));
+		InputStream inputStream = new ByteArrayInputStream(message.getBytes());
+		InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
+		return ResponseEntity.status(HttpStatus.OK).headers(httpHeaders).body(inputStreamResource);
 	}
 }

@@ -103,5 +103,8 @@ public interface WfStatusRepo extends JpaRepository<WfStatusEntity, String> {
 
     @Query(value = "select update_field_values, wf_id, comment, lastupdated_on, current_status from wingspan.wf_status where service_name = ?1 and userid = ?2 order by lastupdated_on desc" , nativeQuery = true)
     List<Object[]> findWfFieldsForUserV2(String servicename , String userId);
+
+    @Query(value = "select * from wingspan.wf_status where service_name = ?1 and current_status = ?2 and dept_name = ?3 limit ?4", nativeQuery = true)
+    List<WfStatusEntity> getListOfApplicationUsingDept(String serviceName, String currentStatus, String deptName, int limit);
 }
 

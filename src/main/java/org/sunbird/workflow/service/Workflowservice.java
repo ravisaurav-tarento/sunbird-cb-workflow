@@ -55,4 +55,6 @@ public interface Workflowservice {
     public Response getUserWFApplicationFieldsV2(String rootOrg, String org, String wid, SearchCriteria criteria);
 
     public SBApiResponse workflowBulkUpdateTransitionV1(String userAuthToken, MultipartFile mFile);
+
+    public ResponseEntity<?> downloadPendingRequestFile(String userAuthToken);
 }
