@@ -1266,13 +1266,14 @@ public class WorkflowServiceImpl implements Workflowservice {
 			List<WfStatusEntity> pendingRequestsEntityList = wfStatusRepo.getListOfApplicationUsingDept(Constants.PROFILE_SERVICE_NAME, Constants.SEND_FOR_APPROVAL, departmentName, limit);
 			if(CollectionUtils.isEmpty(pendingRequestsEntityList)) {
 				String message = "There are no approval requests pending for approval with the MDO";
+				HttpHeaders httpHeaders = new HttpHeaders();
+				httpHeaders.put(Constants.COUNT, Collections.singletonList(String.valueOf(0)));
 				InputStream inputStream = new ByteArrayInputStream(message.getBytes());
 				InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
-				return ResponseEntity.status(HttpStatus.OK).body(inputStreamResource);
+				return ResponseEntity.status(HttpStatus.OK).headers(httpHeaders).body(inputStreamResource);
 			}
 			userIdSet.clear();
 			for (WfStatusEntity wfStatusEntity : pendingRequestsEntityList) {
-				userIdSet.add(wfStatusEntity.getUserId());
 				ObjectMapper objectMapper = new ObjectMapper();
 				List<Map<String, Object>> valuesToBeUpdate = objectMapper.readValue(wfStatusEntity.getUpdateFieldValues(), new TypeReference<List<Map<String, Object>>>() {
 				});
@@ -1282,6 +1283,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 						Map<String, Object> updateKeyValue = (Map<String, Object>) valueToUpdate.get(Constants.TO_VALUE);
 						String keyToUpdate = updateKeyValue.keySet().stream().findFirst().get();
 						if(Constants.DESIGNATION.equalsIgnoreCase(keyToUpdate) || Constants.GROUP.equalsIgnoreCase(keyToUpdate)){
+							userIdSet.add(wfStatusEntity.getUserId());
 							if(allPendingRequest.containsKey(wfStatusEntity.getUserId())) {
 								pendingRequestList = (List<Map<String, Object>>) allPendingRequest.get(wfStatusEntity.getUserId());
 								pendingRequestList.add(updateKeyValue);
@@ -1296,16 +1298,19 @@ public class WorkflowServiceImpl implements Workflowservice {
 				}
 			}
 			String csvFilePath = "/tmp/pendingRequest.csv";
+			//check if this userIdSet is empty
 			Map<String, Object> allUserDetails = this.getUserSearchDetails(userIdSet,false, rootOrgId);
 			if(MapUtils.isNotEmpty(allUserDetails)){
 				this.populateSheetWithPendingRequests(allPendingRequest, allUserDetails ,csvFilePath);
 			} else {
+				HttpHeaders httpHeaders = new HttpHeaders();
+				httpHeaders.put(Constants.COUNT, Collections.singletonList(String.valueOf(0)));
 				String message = "There are no requests pending for Group or Designation approval with the MDO";
 				InputStream inputStream = new ByteArrayInputStream(message.getBytes());
 				InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
-				return ResponseEntity.status(HttpStatus.OK).body(inputStreamResource);
+				return ResponseEntity.status(HttpStatus.OK).headers(httpHeaders).body(inputStreamResource);
 			}
-			responseEntity = this.preparePendingRequestFileResponse(csvFilePath);
+			responseEntity = this.preparePendingRequestFileResponse(csvFilePath, allUserDetails.size());
 		} catch (Exception e) {
 			log.error("An error occurred while downloading file with pending requests", e);
 			responseEntity =  ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -1407,10 +1412,11 @@ public class WorkflowServiceImpl implements Workflowservice {
 		return allUserDetails;
 	}
 
-	private ResponseEntity<?> preparePendingRequestFileResponse(String csvFilePath) throws InterruptedException, IOException {
+	private ResponseEntity<?> preparePendingRequestFileResponse(String csvFilePath, int size) throws InterruptedException, IOException {
 		HttpHeaders headers = new HttpHeaders();
 		headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + "pendingRequest.csv" + "\"");
 		headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+		headers.put(Constants.COUNT, Collections.singletonList(String.valueOf(size)));
 
 		File file = new File(csvFilePath);
 		Path filePath = Paths.get(String.format("%s/%s", Constants.LOCAL_BASE_PATH, "pendingRequest.csv"));
