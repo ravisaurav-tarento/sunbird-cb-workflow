@@ -1298,8 +1298,10 @@ public class WorkflowServiceImpl implements Workflowservice {
 				}
 			}
 			String csvFilePath = "/tmp/pendingRequest.csv";
-			//check if this userIdSet is empty
-			Map<String, Object> allUserDetails = this.getUserSearchDetails(userIdSet,false, rootOrgId);
+			Map<String, Object> allUserDetails = Collections.EMPTY_MAP;
+			if(!CollectionUtils.isEmpty(userIdSet)){
+				allUserDetails = this.getUserSearchDetails(userIdSet,false, rootOrgId);
+			}
 			if(MapUtils.isNotEmpty(allUserDetails)){
 				this.populateSheetWithPendingRequests(allPendingRequest, allUserDetails ,csvFilePath);
 			} else {
