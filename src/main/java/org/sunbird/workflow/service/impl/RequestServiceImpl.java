@@ -144,4 +144,34 @@ public class RequestServiceImpl {
 		}
 		return response;
 	}
+
+	public Object fetchResultUsingPostUnhandled(StringBuilder uri, Object request, Class objectType,HashMap<String, String> headersValue) throws Exception {
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+		Object response = null;
+		StringBuilder str = new StringBuilder(this.getClass().getCanonicalName()).append(".fetchResult:")
+				.append(System.lineSeparator());
+		str.append("URI: ").append(uri.toString()).append(System.lineSeparator());
+		try {
+			str.append("Request: ").append(mapper.writeValueAsString(request)).append(System.lineSeparator());
+			String message = str.toString();
+			log.info(message);
+			HttpHeaders headers = new HttpHeaders();
+			if (!ObjectUtils.isEmpty(headersValue)) {
+				for (Map.Entry<String, String> map : headersValue.entrySet()) {
+					headers.set(map.getKey(), map.getValue());
+				}
+			}
+			headers.set(Constants.ROOT_ORG_CONSTANT, configuration.getHubRootOrg());
+			HttpEntity<Object> entity = new HttpEntity<>(request, headers);
+			response = restTemplate.postForObject(uri.toString(), entity, objectType);
+		} catch (HttpClientErrorException e) {
+			log.error("External Service threw an Exception: ", e);
+			throw e;
+		} catch (Exception e) {
+			log.error("Exception occured while calling the exteranl service: ", e);
+			throw e;
+		}
+		return response;
+	}
 }

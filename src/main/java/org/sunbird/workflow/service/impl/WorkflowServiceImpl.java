@@ -1302,7 +1302,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 			if(MapUtils.isNotEmpty(allUserDetails)){
 				this.populateSheetWithPendingRequests(allPendingRequest, allUserDetails ,csvFilePath);
 			} else {
-				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+				return this.getNoPendingRequestAvailableResponse(Constants.NO_PENDING_GROUP_DESIGNATION_REQUEST_AVAILABLE_MESSAGE);
 			}
 			responseEntity = this.preparePendingRequestFileResponse(csvFilePath, allUserDetails.size());
 		} catch (Exception e) {
@@ -1369,7 +1369,7 @@ public class WorkflowServiceImpl implements Workflowservice {
 		Map<String, Object> allUserDetails = new HashMap<>();
 		StringBuilder url = new StringBuilder(configuration.getLmsServiceHost())
 				.append(configuration.getLmsUserSearchEndPoint());
-		Map<String, Object> searchProfileApiResp = (Map<String, Object>) requestServiceImpl.fetchResultUsingPost(url, request, Map.class, headersValue);
+		Map<String, Object> searchProfileApiResp = (Map<String, Object>) requestServiceImpl.fetchResultUsingPostUnhandled(url, request, Map.class, headersValue);
 		if (searchProfileApiResp != null
 				&& "OK".equalsIgnoreCase((String) searchProfileApiResp.get(Constants.RESPONSE_CODE))) {
 			Map<String, Object> map = (Map<String, Object>) searchProfileApiResp.get(Constants.RESULT);
